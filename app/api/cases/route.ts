@@ -2,9 +2,11 @@ import { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { fingerprintReport, verifyAnalysis } from "@/lib/ai/draft-token";
+import { aiAnalysisResponseSchema } from "@/lib/ai/schema";
 import { checkRateLimit } from "@/lib/api/rate-limit";
 import { AuthError, forbidden, requireAuthenticatedUser } from "@/lib/auth";
-import { createCaseForReporter } from "@/lib/cases/create-case";
+import { createCaseForReporter, type VerifiedAnalysis } from "@/lib/cases/create-case";
 import { createCaseRequestSchema, fieldErrorsFrom } from "@/lib/report/schema";
 
 // Docs/08-API.md §3.1 — generous enough for normal use, tight enough to stop
@@ -58,7 +60,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const created = await createCaseForReporter(parsed.data, user);
+    // An analysis may accompany the report from the pre-save AI review. It is
+    // only persisted if the signature proves CivicProof generated it for this
+    // exact report and this user. A missing, altered or expired token is not an
+    // error: the case is simply saved without an analysis rather than with a
+    // forged one.
+    const analysis = verifiedAnalysisFrom(body, parsed.data, user.id);
+
+    const created = await createCaseForReporter(parsed.data, user, analysis);
 
     return NextResponse.json(
       {
@@ -89,5 +98,51 @@ export async function POST(request: Request) {
       { error: "We couldn't create the case. Your information has not been lost — please try again." },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * Recover a trustworthy analysis from the request, or undefined.
+ *
+ * Never throws: an unusable token degrades to "no analysis", which is the
+ * truthful outcome — better an absent analysis than an unverifiable one.
+ */
+function verifiedAnalysisFrom(
+  body: unknown,
+  report: { incidentType: string; description: string; location?: string },
+  userId: string,
+): VerifiedAnalysis | undefined {
+  if (!body || typeof body !== "object") {
+    return undefined;
+  }
+
+  const { analysis, analysisToken } = body as {
+    analysis?: unknown;
+    analysisToken?: unknown;
+  };
+
+  if (!analysis || typeof analysisToken !== "string") {
+    return undefined;
+  }
+
+  // Shape first: a malformed analysis can never be valid, whatever it is signed
+  // with.
+  const shaped = aiAnalysisResponseSchema.safeParse(analysis);
+
+  if (!shaped.success) {
+    return undefined;
+  }
+
+  try {
+    const fingerprint = fingerprintReport({
+      incidentType: report.incidentType,
+      description: report.description,
+      location: report.location,
+    });
+    const modelLabel = verifyAnalysis(analysisToken, shaped.data, fingerprint, userId);
+
+    return modelLabel ? { result: shaped.data, modelLabel } : undefined;
+  } catch {
+    return undefined;
   }
 }

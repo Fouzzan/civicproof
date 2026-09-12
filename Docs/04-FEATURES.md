@@ -1,874 +1,332 @@
-# CivicProof — Feature Specification
+# 04 — Features
 
-> **Sources:** `docs/01-PROBLEM.md`, `docs/02-USER-RESEARCH.md`, and `docs/03-REQUIREMENTS.md`.
->
-> Every feature in this document maps to one or more requirements from `03-REQUIREMENTS.md`. No standalone feature is included merely because it sounds useful.
->
-> **Priority:** P0 = must have for the hackathon MVP, P1 = important if time permits, P2 = nice to have / future enhancement.
+This document translates the requirements in `03-REQUIREMENTS.md` into a concrete MVP feature set.
 
----
+> **Scope decision:** The problem and requirements documents currently constrain the MVP to **1–2 supported schemes**. The draft feature list mentioned 2–3 schemes; this document follows the established 1–2 scheme constraint rather than expanding scope.
 
-# P0 Features
-
-## F-001 — Create Incident
-
-- **Feature Name:** Create Incident
-- **Problem it solves:** Citizens need a structured way to turn an incident or civic problem into a case instead of starting with an unstructured complaint.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Incident type/category
-  - Description
-  - Available date/time
-  - Available location
-  - Other relevant incident-specific details
-- **Processing:**
-  - Validate the supplied information.
-  - Create a case from the submitted information.
-  - Do not require irrelevant information.
-- **Output:**
-  - Newly created case
-  - Case identifier
-- **Dependencies:**
-  - FR-001
-  - FR-002
-  - FR-003
-  - FR-012
-- **Priority:** P0
-- **Acceptance criteria:**
-  - User can start a new incident.
-  - User can provide relevant details.
-  - A case is created from the submitted information.
-  - Missing information is not fabricated.
+> **Mapping rule:** Every MVP feature below maps to at least one requirement. Features from the draft that do not map to an existing requirement are explicitly flagged rather than introducing unsupported scope.
 
 ---
 
-## F-002 — Incident Type Selection
+# P0 — Core MVP Features
 
-- **Feature Name:** Incident Type Selection
-- **Problem it solves:** Different incidents require different reporting and privacy handling.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Selected incident category/type
-- **Processing:**
-  - Identify whether the report is a civic, public-service, or sensitive safety/person-related case.
-  - Apply the appropriate workflow and privacy behavior.
-- **Output:**
-  - Categorized incident
-  - Appropriate reporting flow
-- **Dependencies:**
-  - FR-002
-- **Priority:** P0
-- **Acceptance criteria:**
-  - User can identify the general type of incident.
-  - Civic and sensitive incidents can be handled within the system.
-  - Sensitive incidents are not treated as public complaints by default.
+## F-001 — Plain-Language Need Chat
+
+| Field | Details |
+|---|---|
+| **Name** | Plain-Language Need Chat |
+| **Problem it solves** | Citizens may understand their situation but not know which government scheme or procedure applies. Starting with a conversational description avoids forcing them to understand government forms first. |
+| **User** | Primary user — citizen |
+| **Input** | A free-form description of the user's situation and need for government assistance. |
+| **Processing** | The service interprets the user's description as the starting point for determining what supported scheme may be relevant and what information is needed next. |
+| **Output** | A conversational response and, when necessary, follow-up questions. |
+| **Dependencies** | REQ-001, REQ-003, NFR-001 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. User can start by describing their situation in their own words. <br>2. User does not need to select or understand a raw government form first. <br>3. The interaction can continue into scheme discovery and eligibility assessment. <br>4. User-facing language is simple and understandable. |
 
 ---
 
-## F-003 — Evidence Upload
+## F-002 — Scheme Matching
 
-- **Feature Name:** Evidence Upload
-- **Problem it solves:** Citizens may have evidence but need a way to attach it to their case.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Supported evidence files
-  - Optional multiple files
-- **Processing:**
-  - Associate uploaded evidence with the correct case.
-  - Preserve the distinction between uploaded evidence and AI interpretation.
-- **Output:**
-  - Evidence associated with the case
-- **Dependencies:**
-  - FR-004
-  - NFR-009
-- **Priority:** P0
-- **Acceptance criteria:**
-  - User can attach supported evidence.
-  - Multiple evidence items can belong to one case.
-  - A case can exist without evidence.
-  - Uploaded evidence is not automatically treated as authentic or conclusive.
+| Field | Details |
+|---|---|
+| **Name** | Supported Scheme Matching |
+| **Problem it solves** | Citizens may not know which welfare scheme is relevant to their situation because scheme information is difficult to navigate. |
+| **User** | Primary user — citizen |
+| **Input** | User's plain-language situation and relevant answers collected during the conversation. |
+| **Processing** | The service compares the available user information against the eligibility rules of the supported MVP schemes. |
+| **Output** | One or more relevant supported scheme matches, or an indication that no supported scheme appears applicable. |
+| **Dependencies** | REQ-002, REQ-003, REQ-010, REQ-011, NFR-003 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Matching uses the defined rules for supported schemes. <br>2. The result does not depend on an unsupported scheme being invented. <br>3. The user receives an understandable explanation of the match. <br>4. If no supported scheme matches, the service handles the negative path explicitly. |
+
+### Scope note
+
+The MVP should support **1–2 schemes**, not a broad scheme catalog.
 
 ---
 
-## F-004 — AI-Assisted Case Analysis
+## F-003 — Guided Eligibility Check
 
-- **Feature Name:** AI-Assisted Case Analysis
-- **Problem it solves:** Unstructured reports can be difficult for citizens to formulate and for authorities to interpret.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - Incident description
-  - Structured incident information
-  - Available evidence/context
-- **Processing:**
-  - Analyze supplied information.
-  - Structure the incident.
-  - Generate a concise summary.
-  - Clearly distinguish AI interpretation from user-provided information.
-- **Output:**
-  - Structured case summary
-  - AI-assisted analysis
-- **Dependencies:**
-  - FR-003
-  - FR-006
-  - NFR-003
-- **Priority:** P0
-- **Acceptance criteria:**
-  - A structured summary can be generated.
-  - AI output is clearly identified as AI-assisted.
-  - AI does not invent facts.
-  - AI does not determine guilt or criminal liability.
+| Field | Details |
+|---|---|
+| **Name** | Guided Eligibility Checker |
+| **Problem it solves** | Citizens may find eligibility requirements difficult to understand and may not know what information is needed. |
+| **User** | Primary user — citizen |
+| **Input** | Information already provided by the user plus answers to targeted follow-up questions. |
+| **Processing** | The service identifies missing information, asks necessary questions, and evaluates the collected information against the supported scheme's eligibility rules. |
+| **Output** | An understandable eligibility result: likely eligible, not eligible, or more information needed. |
+| **Dependencies** | REQ-002, REQ-003, REQ-004, NFR-001, NFR-003 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The service detects when required information is missing. <br>2. It asks targeted follow-up questions. <br>3. It evaluates the collected information against the defined scheme rules. <br>4. It explains the important reason behind the result. <br>5. It does not present unsupported or uncertain conclusions as confirmed facts. |
 
 ---
 
-## F-005 — Severity Assessment
+## F-004 — Eligibility Explanation
 
-- **Feature Name:** Severity Suggestion
-- **Problem it solves:** Users and authorities need an indication of how urgently a case may require attention.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - Available incident information
-  - AI-assisted case analysis
-- **Processing:**
-  - Assess the supplied information.
-  - Produce a severity suggestion.
-  - Avoid inventing missing information.
-- **Output:**
-  - Severity suggestion/level
-- **Dependencies:**
-  - FR-007
-  - FR-006
-  - NFR-003
-- **Priority:** P0
-- **Acceptance criteria:**
-  - A severity level can be displayed.
-  - It is presented as a suggestion/assessment.
-  - Missing information is not fabricated.
+| Field | Details |
+|---|---|
+| **Name** | Explain Eligibility Result |
+| **Problem it solves** | A simple yes/no result does not help a citizen understand why they qualify, do not qualify, or need to provide more information. |
+| **User** | Primary user — citizen |
+| **Input** | Eligibility evaluation and the relevant eligibility conditions. |
+| **Processing** | The service translates the relevant eligibility result and conditions into understandable language. |
+| **Output** | A plain-language explanation of the result and, when applicable, the missing information or relevant condition. |
+| **Dependencies** | REQ-004, REQ-010, NFR-001, NFR-003 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The result is understandable to the target user. <br>2. Important eligibility conditions are explained. <br>3. Missing information is identified when necessary. <br>4. The explanation does not fabricate rules or requirements. |
 
 ---
 
-## F-006 — Reporting Direction Recommendation
+## F-005 — Application Autofill
 
-- **Feature Name:** Reporting Direction Recommendation
-- **Problem it solves:** Citizens may not know which authority or reporting channel is appropriate.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Incident category
-  - Location/jurisdiction where available
-  - Incident details
-- **Processing:**
-  - Determine a potential reporting direction based on known information.
-  - Identify uncertainty where authority responsibility is not established.
-  - Provide an official reporting channel when available.
-- **Output:**
-  - Recommended authority/reporting direction
-  - Reporting channel or next step
-- **Dependencies:**
-  - FR-009
-  - FR-002
-  - FR-003
-- **Priority:** P0
-- **Acceptance criteria:**
-  - A reporting direction is provided when enough information exists.
-  - Category and jurisdiction can influence the recommendation where known.
-  - Uncertainty is explicitly acknowledged.
-  - An official channel can be presented where available.
+| Field | Details |
+|---|---|
+| **Name** | Application Autofill |
+| **Problem it solves** | Government forms can be confusing and may require users to repeatedly enter information they have already provided. |
+| **User** | Primary user — citizen |
+| **Input** | User information collected during the conversation and the selected supported scheme. |
+| **Processing** | The service maps collected information into the relevant application information. |
+| **Output** | A prepared application containing the information that can be populated from the conversation, with missing or confirmation-required information identified. |
+| **Dependencies** | REQ-005, REQ-003, NFR-001, NFR-003 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Application information is derived from information supplied by the user. <br>2. Previously supplied information can be reused where appropriate. <br>3. Missing or confirmation-required information is visible. <br>4. The prepared application is associated with the selected scheme. |
 
 ---
 
-## F-007 — Formal Complaint Generator
+## F-006 — Human Confirmation and Application Review
 
-- **Feature Name:** Formal Complaint Generator
-- **Problem it solves:** Citizens may struggle to convert an experience into a clear formal complaint.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Case information
-  - Incident description
-  - Structured analysis
-  - Relevant contextual information
-- **Processing:**
-  - Convert supplied information into a clear complaint draft.
-  - Preserve the distinction between facts supplied by the user and generated wording.
-  - Do not add unsupported claims.
-- **Output:**
-  - Reviewable formal complaint draft
-- **Dependencies:**
-  - FR-003
-  - FR-006
-  - FR-010
-  - NFR-003
-  - NFR-004
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Complaint draft can be generated.
-  - Draft reflects supplied information.
-  - No facts, evidence, or events are fabricated.
-  - Reporter can review the draft before using it.
+| Field | Details |
+|---|---|
+| **Name** | Application Review & Confirmation |
+| **Problem it solves** | Automatically prepared information may need correction or confirmation by the citizen before submission. |
+| **User** | Primary user — citizen |
+| **Input** | Prepared application. |
+| **Processing** | The service presents the application for review and accepts user corrections or confirmation. |
+| **Output** | A user-confirmed application ready for simulated submission. |
+| **Dependencies** | REQ-006, REQ-005 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. User can see the prepared application before submission. <br>2. User can correct information. <br>3. User must confirm before submission. <br>4. Corrected information is used for the submitted application. |
 
 ---
 
-## F-008 — Official Reporting Handoff
+## F-007 — Simulated Application Submission
 
-- **Feature Name:** Official Reporting / Handoff
-- **Problem it solves:** A citizen needs a legitimate path from the generated complaint to the responsible official reporting channel.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Final/reviewed complaint
-  - Recommended authority/channel
-- **Processing:**
-  - Provide an actual official integration if one exists and is legitimately supported.
-  - Otherwise provide a clear handoff to the official channel.
-  - Track the state honestly.
-- **Output:**
-  - Official-channel handoff or confirmed submission state
-- **Dependencies:**
-  - FR-009
-  - FR-010
-  - FR-011
-  - NFR-011
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Generated and submitted states are distinct.
-  - User receives an official-channel handoff where no integration exists.
-  - The system never claims submission without actual confirmation.
+| Field | Details |
+|---|---|
+| **Name** | Simulated Submission |
+| **Problem it solves** | The hackathon cannot connect to real government backend systems, but the product must demonstrate the complete submission journey. |
+| **User** | Primary user — citizen |
+| **Input** | User-confirmed application. |
+| **Processing** | The prototype creates a simulated application submission record. |
+| **Output** | Submission confirmation and tracking ID. |
+| **Dependencies** | REQ-007, REQ-008, NFR-002 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Only a confirmed application can be submitted. <br>2. Submission is explicitly identified as simulated. <br>3. A simulated application record is created. <br>4. A tracking ID is returned to the user. <br>5. The prototype does not imply that a real government submission occurred. |
 
 ---
 
-## F-009 — Case ID
+## F-008 — Tracking ID
 
-- **Feature Name:** Case ID
-- **Problem it solves:** Citizens and authorities need a reference that identifies a specific case.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - Newly created case
-- **Processing:**
-  - Generate a unique case/reference identifier.
-  - Associate it with the case.
-- **Output:**
-  - Unique case ID
-- **Dependencies:**
-  - FR-012
-  - NFR-009
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Every newly created case receives an identifier.
-  - The identifier is shown to the reporter.
-  - The identifier consistently refers to the corresponding case.
+| Field | Details |
+|---|---|
+| **Name** | Application Tracking ID |
+| **Problem it solves** | Citizens need a way to identify and refer back to an application after submission. |
+| **User** | Primary user — citizen |
+| **Input** | Successfully submitted simulated application. |
+| **Processing** | The service associates a unique tracking identifier with the simulated application. |
+| **Output** | Tracking ID displayed to the user. |
+| **Dependencies** | REQ-008, REQ-007 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. A tracking ID is generated/displayed after submission. <br>2. It identifies the user's simulated application. <br>3. It can be used to retrieve the application later. |
 
 ---
 
-## F-010 — Case Status and Timeline
+## F-009 — Application Status Lookup
 
-- **Feature Name:** Case Status & Timeline
-- **Problem it solves:** Citizens may not know whether a complaint was received, what is happening, or whether it has progressed.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Case ID
-  - Recorded case events/status updates
-- **Processing:**
-  - Build a chronological view of case progress.
-  - Display only actual recorded states/events.
-- **Output:**
-  - Current case status
-  - Chronological case timeline
-- **Dependencies:**
-  - FR-013
-  - FR-012
-  - NFR-003
-  - NFR-009
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Reporter can view the case status.
-  - Timeline displays chronological progress.
-  - Status changes are clear.
-  - The system does not imply progress that did not occur.
+| Field | Details |
+|---|---|
+| **Name** | Conversational Status Lookup |
+| **Problem it solves** | Citizens currently have little visibility after submission and may need to visit an office again to ask about status. |
+| **User** | Primary user — citizen |
+| **Input** | A later status request, such as "What's my status?", together with enough information to identify the user's application. |
+| **Processing** | The service finds the matching simulated application and retrieves its current simulated status. |
+| **Output** | Current simulated application status and relevant tracking information. |
+| **Dependencies** | REQ-009, REQ-008, NFR-002 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. A submitted simulated application has a retrievable status. <br>2. User can request status in plain language. <br>3. The matching application's status is returned. <br>4. No status is invented when no matching application exists. <br>5. Status is clearly identified as simulated. |
 
 ---
 
-## F-011 — Authority Case Review
+# P1 — Important Supporting Features
 
-- **Feature Name:** Authority Case Review
-- **Problem it solves:** Authorities need understandable, organized case information and access to associated evidence.
-- **User:** Authority User
-- **Input:**
-  - Case
-  - Incident details
-  - Associated evidence
-  - AI-assisted summary where available
-- **Processing:**
-  - Present case information in an organized view.
-  - Allow access to evidence according to permissions.
-- **Output:**
-  - Authority case detail view
-- **Dependencies:**
-  - FR-014
-  - FR-005
-  - NFR-010
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Authority user can view relevant cases.
-  - Case information is understandable and structured.
-  - Associated evidence can be accessed according to permissions.
+## F-010 — Clear Non-Eligibility Path
+
+| Field | Details |
+|---|---|
+| **Name** | Non-Eligibility Guidance |
+| **Problem it solves** | A citizen who does not qualify should not receive a dead-end rejection without understanding why. |
+| **User** | Primary user — citizen |
+| **Input** | User situation and eligibility evaluation showing that no supported scheme appears applicable. |
+| **Processing** | The service identifies the relevant eligibility condition(s) and explains the result. |
+| **Output** | Clear non-eligibility explanation and, where supported by the rules, what would need to be different. |
+| **Dependencies** | REQ-010, REQ-004, NFR-003 |
+| **Priority** | **P1** |
+| **Acceptance Criteria** | 1. User is clearly told when no supported scheme appears applicable. <br>2. Relevant reasons are explained when known. <br>3. The service explains what could change the result when supported by the defined rules. <br>4. The interaction does not simply terminate. <br>5. The service does not invent alternative schemes or conditions. |
 
 ---
 
-## F-012 — Authority Status Update
+## F-011 — Unsupported Request Handling
 
-- **Feature Name:** Authority Status Updates
-- **Problem it solves:** Citizens need visibility into what happens after a case reaches an authority.
-- **User:** Authority User; Citizen / Reporter
-- **Input:**
-  - Case
-  - New status
-  - Progress message
-- **Processing:**
-  - Validate authority permissions.
-  - Update the case status.
-  - Add the update to the case timeline.
-- **Output:**
-  - Updated case status
-  - New timeline event
-- **Dependencies:**
-  - FR-016
-  - FR-013
-  - NFR-009
-  - NFR-010
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Authorized authority user can change status.
-  - Progress information can be added.
-  - Update appears in the timeline.
-  - Unauthorized users cannot perform authority-only operations.
+| Field | Details |
+|---|---|
+| **Name** | Out-of-Scope Request Handling |
+| **Problem it solves** | The MVP only supports a small number of schemes, so users may ask for services outside its scope. |
+| **User** | Primary user — citizen |
+| **Input** | A request or situation that does not correspond to a supported MVP scheme. |
+| **Processing** | The service determines that the request is outside the supported scope. |
+| **Output** | A clear explanation that the requested service is not currently supported. |
+| **Dependencies** | REQ-011, NFR-003 |
+| **Priority** | **P1** |
+| **Acceptance Criteria** | 1. Unsupported services are not presented as supported. <br>2. The limitation is clearly communicated. <br>3. The service does not fabricate eligibility rules, requirements, or procedures. |
 
 ---
 
-## F-013 — Record Resolution
+# Cross-Cutting Experience Features
 
-- **Feature Name:** Record Resolution
-- **Problem it solves:** The case needs a clear end state so the reporter can know whether it was resolved.
-- **User:** Authority User; Citizen / Reporter
-- **Input:**
-  - Case
-  - Resolution information
-- **Processing:**
-  - Validate authority permissions.
-  - Record the resolution.
-  - Change the case to a resolved state.
-  - Add the resolution to the case timeline.
-- **Output:**
-  - Resolved case
-  - Resolution information visible to the reporter
-- **Dependencies:**
-  - FR-018
-  - FR-016
-  - FR-013
-  - NFR-003
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Authorized authority user can mark a case resolved.
-  - Resolution information can be recorded.
-  - Reporter can see the final status.
-  - The system does not claim resolution without a recorded resolution state.
+These are not separate user journeys; they are qualities that apply across the core features.
+
+## F-012 — Plain-Language Conversation
+
+| Field | Details |
+|---|---|
+| **Name** | Plain-Language Conversation |
+| **Problem it solves** | Government terminology and administrative language can make the process difficult for the target user. |
+| **User** | Primary user — citizen |
+| **Input** | All citizen-facing questions, responses, eligibility explanations, and application guidance. |
+| **Processing** | Information is communicated in simple, non-technical language, with necessary government terminology explained. |
+| **Output** | Understandable citizen-facing conversation and guidance. |
+| **Dependencies** | NFR-001 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Citizen-facing interactions avoid unnecessary jargon. <br>2. Necessary government terms are explained. <br>3. The core journey can be completed without prior knowledge of government procedures. |
 
 ---
 
-## F-014 — Immediate Safety Guidance
+## F-013 — Simulation Transparency
 
-- **Feature Name:** Immediate Safety Guidance
-- **Problem it solves:** A person facing immediate danger may need urgent help before completing a normal complaint workflow.
-- **User:** Victim / Reporter
-- **Input:**
-  - User indication that immediate help is required
-  - Incident context where available
-- **Processing:**
-  - Prioritize emergency/support guidance.
-  - Keep urgent guidance accessible without requiring full report completion.
-- **Output:**
-  - Appropriate emergency/support guidance
-  - Option to continue with reporting
-- **Dependencies:**
-  - FR-020
-  - NFR-002
-- **Priority:** P0
-- **Acceptance criteria:**
-  - User can indicate immediate danger.
-  - Urgent guidance appears before or alongside normal reporting.
-  - User does not need to complete the full report to access urgent guidance.
+| Field | Details |
+|---|---|
+| **Name** | Simulation Transparency |
+| **Problem it solves** | Without clear disclosure, a user could mistake the prototype's simulated submission or status for a real government transaction. |
+| **User** | Primary user — citizen |
+| **Input** | Submission and status interactions. |
+| **Processing** | The service clearly labels simulated actions and information. |
+| **Output** | Clear indication that submission and status are simulated. |
+| **Dependencies** | NFR-002 |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Simulated submission is clearly disclosed. <br>2. Simulated status is clearly disclosed. <br>3. The service never claims to have submitted to a real government department. |
 
 ---
 
-## F-015 — Private Sensitive Case Handling
+# Draft Features Without Current Requirement Mapping
 
-- **Feature Name:** Private Sensitive Case Handling
-- **Problem it solves:** Harassment and other person-related incidents may contain sensitive information and evidence that should not become public.
-- **User:** Victim / Reporter
-- **Input:**
-  - Sensitive incident
-  - Personal information
-  - Sensitive evidence
-- **Processing:**
-  - Mark sensitive cases as private by default.
-  - Restrict access according to permissions.
-  - Prevent public alleged-offender exposure.
-- **Output:**
-  - Private case and restricted evidence
-- **Dependencies:**
-  - FR-021
-  - NFR-001
-  - NFR-002
-  - NFR-010
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Sensitive reports are not publicly displayed by default.
-  - Sensitive evidence is not publicly exposed by default.
-  - No public alleged-offender feed exists.
-  - Restricted case information is accessible only to appropriate users.
+The following items appeared in the supplied draft feature list but **do not currently map to a requirement in `03-REQUIREMENTS.md`**.
 
----
+They should **not be added to the MVP implementation scope yet**.
 
-# P1 Features
+| Draft Feature | Draft Priority | Mapping Status | Reason |
+|---|---:|---|---|
+| Proactive follow-up reminder | P1 | ⚠️ **Unmapped** | No requirement currently specifies agent-initiated reminders. |
+| Voice input | P2 | ⚠️ **Unmapped** | No requirement currently requires voice interaction. |
+| Multilingual support | P2 | ⚠️ **Unmapped** | No requirement currently requires multilingual interaction. |
+| Document OCR | P2 | ⚠️ **Unmapped** | No requirement currently requires document OCR. |
 
-## F-016 — Organized Case Evidence View
+### Product decision
 
-- **Feature Name:** Organized Case Evidence
-- **Problem it solves:** Evidence and case information can otherwise be fragmented or difficult to understand.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - Case evidence
-  - Case information
-- **Processing:**
-  - Group evidence under the relevant case.
-  - Present evidence in context.
-- **Output:**
-  - Organized evidence section in the case view
-- **Dependencies:**
-  - FR-005
-  - FR-004
-  - NFR-009
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Evidence is visibly associated with its case.
-  - Authority case view can access associated evidence.
-  - Evidence is not presented as automatically authentic or conclusive.
+These features are reasonable future ideas, but adding them to the current feature scope would expand the product beyond what the problem, user research, and requirements currently establish.
 
----
+If the team later decides that one of them is important enough for the hackathon, the correct sequence is:
 
-## F-017 — Potentially Relevant Regulatory Context
+**Feature decision → requirement update → feature mapping → implementation**
 
-- **Feature Name:** Potentially Relevant Regulatory Context
-- **Problem it solves:** Reporters may need contextual information about potentially relevant rules or regulations.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Incident details
-  - Incident category
-  - Jurisdiction where known
-- **Processing:**
-  - Identify potentially relevant regulatory context.
-  - Present it as contextual information rather than a legal conclusion.
-- **Output:**
-  - Potentially relevant regulatory information
-  - Appropriate disclaimer/context
-- **Dependencies:**
-  - FR-008
-  - NFR-004
-  - NFR-003
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Relevant context can be displayed when available.
-  - It is not presented as definitive legal advice.
-  - Laws/provisions are not invented.
-  - The result does not determine guilt or liability.
-
----
-
-## F-018 — Authority Case Assignment
-
-- **Feature Name:** Authority Case Assignment
-- **Problem it solves:** Authority workflows may require cases to be assigned to the appropriate person/team.
-- **User:** Authority User
-- **Input:**
-  - Case
-  - Assignment target
-- **Processing:**
-  - Validate authority permissions.
-  - Assign the case.
-  - Record the assignment in the case state.
-- **Output:**
-  - Assigned case
-- **Dependencies:**
-  - FR-015
-  - NFR-010
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Authorized authority user can assign a case.
-  - Assignment is visible in the case state.
-  - Unauthorized users cannot perform the assignment.
-
----
-
-## F-019 — Request Additional Information
-
-- **Feature Name:** Request Additional Information
-- **Problem it solves:** Authorities may need missing information before they can process a case.
-- **User:** Authority User; Citizen / Reporter
-- **Input:**
-  - Case
-  - Information request/message
-- **Processing:**
-  - Associate the request with the case.
-  - Make the requested information understandable to the reporter.
-- **Output:**
-  - Additional-information request attached to the case
-- **Dependencies:**
-  - FR-017
-  - FR-016
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Authority user can indicate that additional information is required.
-  - Request is associated with the correct case.
-  - Reporter can understand what information is requested.
-
----
-
-## F-020 — Resolution Evidence / Verification
-
-- **Feature Name:** Resolution Evidence & Verification
-- **Problem it solves:** A resolution may need supporting evidence or a way to assess whether the reported problem appears to have been addressed.
-- **User:** Authority User; Citizen / Reporter
-- **Input:**
-  - Resolution evidence
-  - Case information
-- **Processing:**
-  - Associate resolution evidence with the case.
-  - Distinguish evidence from AI interpretation.
-  - Support verification without treating AI interpretation as conclusive fact.
-- **Output:**
-  - Resolution evidence
-  - Verification state/information
-- **Dependencies:**
-  - FR-019
-  - FR-018
-  - NFR-003
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Resolution evidence can be associated with the case.
-  - Evidence is distinguished from AI-generated interpretation.
-  - Verification does not establish facts beyond available evidence.
-
----
-
-## F-021 — Case Search by ID
-
-- **Feature Name:** Case Search / Retrieval
-- **Problem it solves:** Reporters need to retrieve a case using its reference ID.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Case ID
-- **Processing:**
-  - Find the corresponding case.
-  - Apply access controls before showing information.
-- **Output:**
-  - Matching case or appropriate not-found result
-- **Dependencies:**
-  - FR-022
-  - FR-012
-  - NFR-010
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Valid case ID retrieves the corresponding case.
-  - Invalid IDs produce an appropriate result.
-  - Guessing a case ID does not expose sensitive information without authorization.
-
----
-
-# Cross-Cutting Non-Functional Features
-
-## F-022 — AI Failure Fallback
-
-- **Feature Name:** AI Failure / Fallback Handling
-- **Problem it solves:** The core reporting process should not falsely imply that AI analysis succeeded when the AI service is unavailable.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - AI request
-  - AI service response/error
-- **Processing:**
-  - Detect AI failure.
-  - Clearly communicate the failure.
-  - Preserve available case information.
-  - Allow the core workflow to remain usable where possible.
-- **Output:**
-  - Clear error/fallback state
-  - Existing case information remains accessible
-- **Dependencies:**
-  - NFR-005
-  - FR-006
-- **Priority:** P1
-- **Acceptance criteria:**
-  - AI failure does not produce a false AI result.
-  - User receives a clear fallback/error state.
-  - Core case information remains accessible.
-
----
-
-## F-023 — Privacy-Aware Access Control
-
-- **Feature Name:** Permission-Aware Case Access
-- **Problem it solves:** Sensitive case information must only be accessible to appropriate users.
-- **User:** Citizen / Reporter; Authority User
-- **Input:**
-  - User role
-  - Case sensitivity
-  - Requested case/evidence
-- **Processing:**
-  - Determine whether the user is authorized to access the requested information.
-  - Restrict sensitive cases and authority-only operations.
-- **Output:**
-  - Authorized information/action or access denial
-- **Dependencies:**
-  - NFR-010
-  - NFR-001
-  - FR-021
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Unauthorized users cannot access restricted case information.
-  - Sensitive information is not exposed through public views.
-  - Authority-only operations are restricted.
-
----
-
-## F-024 — Honest Case State Representation
-
-- **Feature Name:** Transparent Case State
-- **Problem it solves:** Citizens need to know whether a complaint was generated, handed off, officially submitted, acknowledged, or resolved without being misled.
-- **User:** Citizen / Reporter
-- **Input:**
-  - Complaint state
-  - Handoff/submission confirmation
-  - Case updates
-- **Processing:**
-  - Represent each state explicitly.
-  - Only advance to confirmed states when there is evidence/confirmation of that state.
-- **Output:**
-  - Accurate case/submission status
-- **Dependencies:**
-  - NFR-011
-  - FR-011
-  - FR-013
-  - FR-018
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Generated, handed-off, and confirmed-submission states are distinguishable.
-  - A generated complaint is never labeled as officially submitted.
-  - External acknowledgment is never claimed without confirmation.
-
----
-
-## F-025 — Mobile-Friendly Reporting Experience
-
-- **Feature Name:** Mobile-Friendly Citizen Workflow
-- **Problem it solves:** Reporting may happen in real-world situations where the citizen is using a phone.
-- **User:** Citizen / Reporter; Victim
-- **Input:**
-  - Touch/mobile interaction
-  - Incident details
-  - Evidence
-- **Processing:**
-  - Present the core reporting workflow in a mobile-usable layout.
-  - Keep evidence upload and case tracking accessible on mobile.
-- **Output:**
-  - Mobile-usable reporting and tracking experience
-- **Dependencies:**
-  - NFR-007
-  - FR-001
-  - FR-004
-  - FR-013
-- **Priority:** P0
-- **Acceptance criteria:**
-  - Core reporting actions work on phone-sized screens.
-  - Evidence upload is accessible on mobile.
-  - Case status can be viewed without a desktop interface.
-
----
-
-## F-026 — Accessible Interface
-
-- **Feature Name:** Accessibility Support
-- **Problem it solves:** Users with different accessibility needs should be able to understand and use the reporting workflow.
-- **User:** All users
-- **Input:**
-  - User interaction
-- **Processing:**
-  - Use understandable labels.
-  - Avoid conveying important information through color alone.
-  - Keep interactive elements accessible.
-- **Output:**
-  - More accessible interface
-- **Dependencies:**
-  - NFR-008
-- **Priority:** P1
-- **Acceptance criteria:**
-  - Form controls have understandable labels.
-  - Important information is not communicated through color alone.
-  - Interactive elements support standard accessibility mechanisms.
-  - Text remains readable on supported screen sizes.
-
----
-
-# Features Explicitly Excluded
-
-The following ideas are interesting, but they are **not included as features** because the requirements document does not provide a sufficiently direct requirement for them.
-
-## X-001 — Duplicate / Related Incident Clustering
-
-**Status:** EXCLUDED
-
-**Why:** User research mentions duplicate and related reports as edge cases, but `03-REQUIREMENTS.md` does not contain a requirement requiring duplicate detection or incident clustering. Adding it would violate the rule that every feature must map to a requirement.
-
-**Possible future requirement:** If future research establishes that duplicate/related-case detection is important, add a requirement first and then define the feature.
-
----
-
-## X-002 — Automatic Escalation
-
-**Status:** EXCLUDED
-
-**Why:** User research identifies uncertainty about escalation as a pain point, but the current requirements do not define an automated escalation capability or acceptance criteria.
-
-**Possible future requirement:** Define when escalation should occur, who receives it, and whether it is advisory or automatic before making this a feature.
-
----
-
-## X-003 — Notifications
-
-**Status:** EXCLUDED
-
-**Why:** Notifications were mentioned in earlier product discussions, but the current requirements do not contain a notification requirement. Case status visibility is required; a separate notification mechanism is not.
-
----
-
-## X-004 — Public Incident Map
-
-**Status:** EXCLUDED
-
-**Why:** A public map is not required by the current problem, user research, or requirements. Public exposure is particularly inappropriate for sensitive person-related cases.
-
----
-
-## X-005 — Before/After AI Image Comparison
-
-**Status:** EXCLUDED
-
-**Why:** Resolution verification is required, but the requirements do not specifically require AI image comparison. A narrower resolution-evidence workflow is sufficient.
-
----
-
-## X-006 — Native Mobile App
-
-**Status:** EXCLUDED
-
-**Why:** The requirement is a mobile-friendly experience, not a native mobile application. The platform choice belongs to the later technology/design stage.
-
----
-
-## X-007 — Real-Time Chat
-
-**Status:** EXCLUDED
-
-**Why:** The requirements support case updates and requests for additional information, but do not establish real-time chat as necessary.
-
----
-
-## X-008 — Public Alleged-Offender Feed / Name-and-Shame System
-
-**Status:** EXCLUDED
-
-**Why:** This conflicts directly with the privacy and safety requirements. Sensitive person-related reports must remain private by default, and the product must not publicly identify or shame alleged offenders.
-
----
-
-## X-009 — Automatic Legal Decision-Making
-
-**Status:** EXCLUDED
-
-**Why:** The requirements explicitly limit legal functionality to potentially relevant regulatory context. The system must not determine guilt, criminal liability, or provide definitive legal conclusions.
+rather than implementing the feature first.
 
 ---
 
 # Feature-to-Requirement Traceability
 
-| Feature | Requirement IDs | Priority |
-|---|---|---|
-| F-001 Create Incident | FR-001, FR-002, FR-003, FR-012 | P0 |
-| F-002 Incident Type Selection | FR-002 | P0 |
-| F-003 Evidence Upload | FR-004, NFR-009 | P0 |
-| F-004 AI-Assisted Case Analysis | FR-006, NFR-003 | P0 |
-| F-005 Severity Suggestion | FR-007, NFR-003 | P0 |
-| F-006 Reporting Direction Recommendation | FR-009 | P0 |
-| F-007 Formal Complaint Generator | FR-010, NFR-003, NFR-004 | P0 |
-| F-008 Official Reporting / Handoff | FR-011, NFR-011 | P0 |
-| F-009 Case ID | FR-012, NFR-009 | P0 |
-| F-010 Case Status & Timeline | FR-013, NFR-003, NFR-009 | P0 |
-| F-011 Authority Case Review | FR-014, FR-005, NFR-010 | P0 |
-| F-012 Authority Status Updates | FR-016, FR-013, NFR-010 | P0 |
-| F-013 Record Resolution | FR-018, NFR-003 | P0 |
-| F-014 Immediate Safety Guidance | FR-020, NFR-002 | P0 |
-| F-015 Private Sensitive Case Handling | FR-021, NFR-001, NFR-002, NFR-010 | P0 |
-| F-016 Organized Case Evidence | FR-005 | P1 |
-| F-017 Regulatory Context | FR-008, NFR-004 | P1 |
-| F-018 Authority Case Assignment | FR-015, NFR-010 | P1 |
-| F-019 Request Additional Information | FR-017 | P1 |
-| F-020 Resolution Evidence & Verification | FR-019, NFR-003 | P1 |
-| F-021 Case Search / Retrieval | FR-022, NFR-010 | P1 |
-| F-022 AI Failure / Fallback | NFR-005 | P1 |
-| F-023 Permission-Aware Case Access | NFR-010, NFR-001 | P0 |
-| F-024 Transparent Case State | NFR-011, FR-011, FR-013 | P0 |
-| F-025 Mobile-Friendly Citizen Workflow | NFR-007 | P0 |
-| F-026 Accessibility Support | NFR-008 | P1 |
+| Feature | Requirement(s) | Priority |
+|---|---|---:|
+| F-001 Plain-Language Need Chat | REQ-001, REQ-003, NFR-001 | P0 |
+| F-002 Supported Scheme Matching | REQ-002, REQ-010, REQ-011, NFR-003 | P0 |
+| F-003 Guided Eligibility Checker | REQ-002, REQ-003, REQ-004, NFR-001, NFR-003 | P0 |
+| F-004 Eligibility Explanation | REQ-004, REQ-010, NFR-001, NFR-003 | P0 |
+| F-005 Application Autofill | REQ-005, REQ-003, NFR-003 | P0 |
+| F-006 Application Review & Confirmation | REQ-006, REQ-005 | P0 |
+| F-007 Simulated Submission | REQ-007, REQ-008, NFR-002 | P0 |
+| F-008 Application Tracking ID | REQ-008, REQ-007 | P0 |
+| F-009 Conversational Status Lookup | REQ-009, REQ-008, NFR-002 | P0 |
+| F-010 Non-Eligibility Guidance | REQ-010, REQ-004, NFR-003 | P1 |
+| F-011 Out-of-Scope Request Handling | REQ-011, NFR-003 | P1 |
+| F-012 Plain-Language Conversation | NFR-001 | P0 |
+| F-013 Simulation Transparency | NFR-002 | P0 |
 
 ---
 
-# Hackathon MVP Feature Set
+# Recommended Hackathon MVP
 
-For a ~4-hour build, the recommended **P0 demo path** is:
-
-```text
-F-001 Create Incident
-        ↓
-F-002 Incident Type Selection
-        ↓
-F-003 Evidence Upload
-        ↓
-F-004 AI-Assisted Case Analysis
-        ↓
-F-005 Severity Suggestion
-        ↓
-F-006 Reporting Direction Recommendation
-        ↓
-F-007 Formal Complaint Generator
-        ↓
-F-008 Official Reporting / Handoff
-        ↓
-F-009 Case ID
-        ↓
-F-010 Case Status & Timeline
-        ↓
-F-011 Authority Case Review
-        ↓
-F-012 Authority Status Updates
-        ↓
-F-013 Record Resolution
-```
-
-For the **sensitive harassment/safety demo path**, the critical additional features are:
+The **P0 critical path** is:
 
 ```text
-F-014 Immediate Safety Guidance
-        ↓
-F-015 Private Sensitive Case Handling
-        ↓
-F-023 Permission-Aware Case Access
-        ↓
-F-024 Transparent Case State
+Describe situation
+       ↓
+Match supported scheme
+       ↓
+Ask necessary questions
+       ↓
+Check eligibility
+       ↓
+Explain result
+       ↓
+Generate application
+       ↓
+Review + confirm
+       ↓
+Simulated submission
+       ↓
+Tracking ID
+       ↓
+Ask "What's my status?"
+       ↓
+Show simulated status
 ```
 
-P1 features should only be implemented after the P0 path is working reliably.
+The MVP should also demonstrate at least one meaningful negative path:
 
+```text
+Describe situation
+       ↓
+Ask necessary questions
+       ↓
+No supported scheme / not eligible
+       ↓
+Explain why
+       ↓
+Explain what would need to change, when supported
+       ↓
+Do not dead-end or fabricate another scheme
+```
+
+## Explicitly out of MVP scope
+
+Unless a later requirement is added, the following remain outside the MVP:
+
+- Agent-initiated reminders
+- Voice input
+- Multilingual support
+- Document OCR
+- A large government scheme catalog
+- Real government backend submission
+- Real government application status
+
+This keeps the hackathon build focused on demonstrating the core Public Services & Civic Agents journey end-to-end.

@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 
+import type { AiAnalysisView } from "@/components/case/ai-analysis-card";
 import {
   ImmediateSafetyGuidance,
   PrivateReportNotice,
 } from "@/components/report/safety-notice";
+import { StepAiReview } from "@/components/report/step-ai-review";
+import { StepConfirm } from "@/components/report/step-confirm";
 import { StepEvidence } from "@/components/report/step-evidence";
-import { StepIncidentDetails, type IncidentDetailsValues } from "@/components/report/step-incident-details";
+import {
+  StepIncidentDetails,
+  type IncidentDetailsValues,
+} from "@/components/report/step-incident-details";
 import { StepIncidentType } from "@/components/report/step-incident-type";
 import { StepIndicator } from "@/components/report/step-indicator";
-import { StepReview } from "@/components/report/step-review";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,14 +35,15 @@ import {
   incidentTypeStepSchema,
 } from "@/lib/report/schema";
 
-const STEPS = ["Type", "Details", "Evidence", "Review"] as const;
+const STEPS = ["Type", "Details", "Evidence", "AI review", "Confirm"] as const;
+const STEP_TYPE = 0;
+const STEP_DETAILS = 1;
+const STEP_EVIDENCE = 2;
+const STEP_REVIEW = 3;
+const STEP_CONFIRM = 4;
 
-/**
- * The submit sequence is two server round-trips, and the second one may fail
- * without invalidating the first. The phase makes that explicit so a failed
- * photo upload can never be mistaken for a failed case creation.
- */
-type SubmitPhase = "idle" | "creating" | "uploading" | "evidence-failed";
+type AnalysisStatus = "idle" | "loading" | "ready" | "failed";
+type FilingPhase = "idle" | "creating" | "uploading" | "evidence-failed";
 
 const EMPTY_DETAILS: IncidentDetailsValues = {
   description: "",
@@ -50,9 +56,12 @@ const EMPTY_DETAILS: IncidentDetailsValues = {
 /**
  * The guided reporting flow.
  *
- * All state lives here, in the browser, for the duration of the flow. Nothing is
- * persisted: case creation, evidence upload and AI analysis are later tasks, so
- * this component deliberately calls no API.
+ * The order matters: the report is analysed BEFORE anything is written, so a
+ * citizen who abandons the flow leaves no half-finished case behind, and nobody
+ * files a report without first seeing what CivicProof made of it.
+ *
+ * Evidence stays in the browser until the case exists, which avoids orphaned
+ * uploads for reports that are never filed.
  */
 export function ReportWizard() {
   const [step, setStep] = useState(0);
@@ -61,37 +70,37 @@ export function ReportWizard() {
   const [evidence, setEvidence] = useState<readonly SelectedEvidence[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [evidenceError, setEvidenceError] = useState<string | undefined>();
-  const [phase, setPhase] = useState<SubmitPhase>("idle");
-  const [submitError, setSubmitError] = useState<string | undefined>();
+
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>("idle");
+  const [analysis, setAnalysis] = useState<AiAnalysisView | null>(null);
+  const [analysisToken, setAnalysisToken] = useState<string | null>(null);
+  const [imagesAnalysed, setImagesAnalysed] = useState(0);
+  const [analysisError, setAnalysisError] = useState<string | undefined>();
+
+  const [phase, setPhase] = useState<FilingPhase>("idle");
+  const [filingError, setFilingError] = useState<string | undefined>();
   const [createdCaseId, setCreatedCaseId] = useState<string | undefined>();
   const [failedEvidence, setFailedEvidence] = useState<readonly SelectedEvidence[]>([]);
 
   const router = useRouter();
-
   const isSensitive = isSensitiveIncidentType(incidentType);
+  const isBusy = phase === "creating" || phase === "uploading";
 
-  // Object URLs are created per selected file and must be released so the
-  // browser does not hold the image data for the life of the page.
+  const objectUrls = useRef<string[]>([]);
+
   useEffect(() => {
-    return () => {
-      evidence.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-    };
-    // Intentionally on unmount only; individual removals revoke their own URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const urls = objectUrls.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
   const updateDetail = useCallback(
     (field: keyof IncidentDetailsValues, value: string) => {
       setDetails((current) => ({ ...current, [field]: value }));
-      setErrors((current) => {
-        if (!current[field]) {
-          return current;
-        }
-
-        return Object.fromEntries(
-          Object.entries(current).filter(([key]) => key !== field),
-        );
-      });
+      setErrors((current) =>
+        current[field]
+          ? Object.fromEntries(Object.entries(current).filter(([key]) => key !== field))
+          : current,
+      );
     },
     [],
   );
@@ -120,10 +129,12 @@ export function ReportWizard() {
           continue;
         }
 
+        const previewUrl = URL.createObjectURL(file);
+        objectUrls.current.push(previewUrl);
         accepted.push({
           id: `${file.name}-${file.lastModified}-${crypto.randomUUID()}`,
           file,
-          previewUrl: URL.createObjectURL(file),
+          previewUrl,
         });
       }
 
@@ -149,9 +160,69 @@ export function ReportWizard() {
   }, []);
 
   /**
-   * Upload each selected image to the case that now exists. Returns the items
-   * that did not make it, so the caller can offer a retry.
+   * Ask the server to review the draft. Nothing is persisted by this call.
+   * Sensitive reports send no photos - the server enforces that independently.
    */
+  const runAnalysis = useCallback(async () => {
+    setAnalysisStatus("loading");
+    setAnalysisError(undefined);
+
+    try {
+      const form = new FormData();
+      form.append(
+        "report",
+        JSON.stringify({
+          incidentType,
+          description: details.description,
+          date: details.date,
+          time: details.time,
+          location: details.location,
+          additionalContext: details.additionalContext,
+        }),
+      );
+
+      if (!isSensitive) {
+        evidence.forEach((item) => form.append("images", item.file));
+      }
+
+      const response = await fetch("/api/report/analysis", {
+        method: "POST",
+        body: form,
+      });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setAnalysisError(
+          payload && typeof payload === "object" && "error" in payload
+            ? String((payload as { error: unknown }).error)
+            : "AI review is temporarily unavailable.",
+        );
+        setAnalysisStatus("failed");
+        return;
+      }
+
+      const data = payload as {
+        analysis?: AiAnalysisView;
+        analysisToken?: string;
+        imagesAnalysed?: number;
+      };
+
+      if (!data.analysis || !data.analysisToken) {
+        setAnalysisError("The review came back incomplete.");
+        setAnalysisStatus("failed");
+        return;
+      }
+
+      setAnalysis(data.analysis);
+      setAnalysisToken(data.analysisToken);
+      setImagesAnalysed(data.imagesAnalysed ?? 0);
+      setAnalysisStatus("ready");
+    } catch {
+      setAnalysisError("We couldn't reach CivicProof to review your report.");
+      setAnalysisStatus("failed");
+    }
+  }, [details, incidentType, evidence, isSensitive]);
+
   async function uploadEvidence(
     caseId: string,
     items: readonly SelectedEvidence[],
@@ -185,8 +256,6 @@ export function ReportWizard() {
     }
 
     setPhase("uploading");
-    setSubmitError(undefined);
-
     const stillFailed = await uploadEvidence(createdCaseId, failedEvidence);
 
     if (stillFailed.length > 0) {
@@ -195,27 +264,26 @@ export function ReportWizard() {
       return;
     }
 
-    setFailedEvidence([]);
     router.push(`/report/created/${createdCaseId}`);
   }
 
-  async function submitReport() {
-    // Guard against a double-click landing two cases in the database. The
-    // server also rate-limits, but the first line of defence is not sending the
-    // second request at all.
+  /**
+   * Create the case. This is the first and only write in the whole flow.
+   */
+  async function fileReport() {
     if (phase !== "idle") {
       return;
     }
 
     setPhase("creating");
-    setSubmitError(undefined);
+    setFilingError(undefined);
 
     try {
       const response = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Only the reporter's own answers are sent. Sensitivity, status,
-        // reporter and timeline actor are all derived on the server.
+        // The analysis travels with its signature; the server re-verifies it and
+        // ignores anything that does not match.
         body: JSON.stringify({
           incidentType,
           description: details.description,
@@ -223,41 +291,34 @@ export function ReportWizard() {
           time: details.time,
           location: details.location,
           additionalContext: details.additionalContext,
+          ...(analysis && analysisToken ? { analysis, analysisToken } : {}),
         }),
       });
 
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message =
+        setFilingError(
           payload && typeof payload === "object" && "error" in payload
             ? String((payload as { error: unknown }).error)
-            : "We couldn't create your report. Please try again.";
-
-        setSubmitError(message);
+            : "We couldn't file your report. Please try again.",
+        );
         setPhase("idle");
         return;
       }
 
-      const caseId =
-        payload && typeof payload === "object" && "case" in payload
-          ? (payload as { case: { caseId?: string } }).case?.caseId
-          : undefined;
+      const caseId = (payload as { case?: { caseId?: string } })?.case?.caseId;
 
       if (!caseId) {
-        setSubmitError(
-          "Your report was created but no reference came back. Please check your cases before reporting again.",
-        );
+        setFilingError("Your report was filed but no reference came back.");
         setPhase("idle");
         return;
       }
 
       setCreatedCaseId(caseId);
 
-      // The case exists from here on. A photo failure must never undo it.
       if (evidence.length > 0) {
         setPhase("uploading");
-
         const failed = await uploadEvidence(caseId, evidence);
 
         if (failed.length > 0) {
@@ -267,27 +328,24 @@ export function ReportWizard() {
         }
       }
 
-      // Stay disabled through navigation so the button cannot fire twice.
       router.push(`/report/created/${caseId}`);
     } catch {
-      setSubmitError(
-        "We couldn't reach CivicProof. Check your connection and try again — your answers are still here.",
+      setFilingError(
+        "We couldn't reach CivicProof. Check your connection - your answers are still here.",
       );
       setPhase("idle");
     }
   }
 
   function goNext() {
-    if (step === 0) {
-      const result = incidentTypeStepSchema.safeParse({ incidentType });
-
-      if (!result.success) {
+    if (step === STEP_TYPE) {
+      if (!incidentTypeStepSchema.safeParse({ incidentType }).success) {
         setErrors({ incidentType: "Choose the kind of problem you are reporting." });
         return;
       }
     }
 
-    if (step === 1) {
+    if (step === STEP_DETAILS) {
       const result = incidentDetailsStepSchema.safeParse(details);
 
       if (!result.success) {
@@ -297,6 +355,12 @@ export function ReportWizard() {
     }
 
     setErrors({});
+
+    // Entering the review step kicks off the analysis automatically.
+    if (step === STEP_EVIDENCE) {
+      void runAnalysis();
+    }
+
     setStep((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
@@ -305,70 +369,95 @@ export function ReportWizard() {
     setStep((current) => Math.max(current - 1, 0));
   }
 
-  const isLastStep = step === STEPS.length - 1;
-  const isBusy = phase === "creating" || phase === "uploading";
+  const showSafety = isSensitive && step <= STEP_REVIEW;
 
   return (
-    <div className="space-y-6">
-      <StepIndicator steps={STEPS} currentStep={step} />
+    <div className="space-y-7">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+        <StepIndicator steps={STEPS} currentStep={step} />
+      </div>
 
-      {/*
-        Safety guidance appears the moment a sensitive category is chosen and
-        stays visible for the rest of the flow — never gated behind later steps.
-      */}
-      {isSensitive ? (
+      {showSafety ? (
         <div className="space-y-3">
           <ImmediateSafetyGuidance />
           <PrivateReportNotice />
         </div>
       ) : null}
 
-      {step === 0 ? (
-        <StepIncidentType
-          value={incidentType}
-          onChange={(value) => {
-            setIncidentType(value);
-            setErrors({});
-          }}
-          error={errors.incidentType}
-        />
-      ) : null}
+      {/*
+        Keyed on the step so each screen animates in on its own, rather than the
+        new content cross-fading inside the previous screen's layout.
+      */}
+      <div
+        key={step}
+        className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+      >
+        {step === STEP_TYPE ? (
+          <StepIncidentType
+            value={incidentType}
+            onChange={(value) => {
+              setIncidentType(value);
+              setErrors({});
+            }}
+            error={errors.incidentType}
+          />
+        ) : null}
 
-      {step === 1 ? (
-        <StepIncidentDetails values={details} onChange={updateDetail} errors={errors} />
-      ) : null}
+        {step === STEP_DETAILS ? (
+          <StepIncidentDetails values={details} onChange={updateDetail} errors={errors} />
+        ) : null}
 
-      {step === 2 ? (
-        <StepEvidence
-          evidence={evidence}
-          onAdd={addEvidence}
-          onRemove={removeEvidence}
-          error={evidenceError}
-        />
-      ) : null}
+        {step === STEP_EVIDENCE ? (
+          <StepEvidence
+            evidence={evidence}
+            onAdd={addEvidence}
+            onRemove={removeEvidence}
+            error={evidenceError}
+            isSensitive={isSensitive}
+          />
+        ) : null}
 
-      {step === 3 ? (
-        <StepReview incidentType={incidentType} details={details} evidence={evidence} />
-      ) : null}
+        {step === STEP_REVIEW ? (
+          <StepAiReview
+            status={analysisStatus === "idle" ? "loading" : analysisStatus}
+            analysis={analysis}
+            error={analysisError}
+            originalDescription={details.description}
+            evidence={evidence}
+            isSensitive={isSensitive}
+            imagesAnalysed={imagesAnalysed}
+            onRetry={() => void runAnalysis()}
+            onEditReport={() => setStep(STEP_DETAILS)}
+          />
+        ) : null}
+
+        {step === STEP_CONFIRM ? (
+          <StepConfirm
+            incidentType={incidentType}
+            details={details}
+            evidence={evidence}
+            analysis={analysis}
+          />
+        ) : null}
+      </div>
 
       {phase === "evidence-failed" && createdCaseId ? (
         <Alert>
-          <AlertTitle>Your case was created &mdash; but the photos were not attached</AlertTitle>
+          <AlertTitle>
+            Your case was filed &mdash; but the photos were not attached
+          </AlertTitle>
           <AlertDescription>
             <span className="block">
               Case <span className="font-mono font-medium">{createdCaseId}</span> is
               saved. {failedEvidence.length} photo
-              {failedEvidence.length === 1 ? "" : "s"} could not be uploaded. Your
-              case is safe either way &mdash; you can try the upload again or carry
-              on without the photos.
+              {failedEvidence.length === 1 ? "" : "s"} could not be uploaded.
             </span>
             <span className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button type="button" size="sm" onClick={retryEvidenceUpload}>
+              <Button type="button" onClick={retryEvidenceUpload}>
                 Try uploading again
               </Button>
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
                 onClick={() => router.push(`/report/created/${createdCaseId}`)}
               >
@@ -379,46 +468,70 @@ export function ReportWizard() {
         </Alert>
       ) : null}
 
-      {submitError ? (
+      {filingError ? (
         <Alert variant="destructive">
-          <AlertTitle>We couldn&apos;t create your report</AlertTitle>
+          <AlertTitle>We couldn&apos;t file your report</AlertTitle>
           <AlertDescription>
-            {submitError} Nothing you entered has been lost.
+            {filingError} Nothing you entered has been lost.
           </AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-between" hidden={phase === "evidence-failed"}>
+      <div
+        className="flex flex-col-reverse gap-4 border-t border-border pt-6 sm:flex-row sm:items-start sm:justify-between"
+        hidden={phase === "evidence-failed"}
+      >
         <Button
           type="button"
           variant="ghost"
           size="lg"
           onClick={goBack}
-          disabled={step === 0 || isBusy}
+          disabled={step === STEP_TYPE || isBusy}
         >
           <ArrowLeft aria-hidden="true" />
           Back
         </Button>
 
-        {isLastStep ? (
+        {step === STEP_CONFIRM ? (
           <div className="space-y-2 sm:text-right">
-            <Button type="button" size="lg" onClick={submitReport} disabled={isBusy}>
+            <Button
+              type="button"
+              size="xl"
+              onClick={fileReport}
+              disabled={isBusy}
+              className="w-full sm:w-auto"
+            >
               {isBusy ? (
                 <>
                   <Loader2 aria-hidden="true" className="animate-spin" />
-                  {phase === "uploading" ? "Uploading photos…" : "Creating your case…"}
+                  {phase === "uploading"
+                    ? "Uploading photos…"
+                    : "Filing your report…"}
                 </>
               ) : (
-                "Create my case"
+                <>
+                  <Send aria-hidden="true" />
+                  File my report
+                </>
               )}
             </Button>
             <p className="text-xs text-muted-foreground">
-              This saves your report and any photos in CivicProof. It is not sent to any authority.
+              Saved to CivicProof. Not sent to any authority.
             </p>
           </div>
         ) : (
-          <Button type="button" size="lg" onClick={goNext}>
-            Continue
+          <Button
+            type="button"
+            size="xl"
+            onClick={goNext}
+            disabled={step === STEP_REVIEW && analysisStatus === "loading"}
+            className="w-full sm:w-auto"
+          >
+            {step === STEP_REVIEW
+              ? analysisStatus === "failed"
+                ? "Continue without AI"
+                : "Accept & continue"
+              : "Continue"}
             <ArrowRight aria-hidden="true" />
           </Button>
         )}

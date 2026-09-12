@@ -1,492 +1,218 @@
-# CivicProof — Requirements Specification
+# 03 — Requirements
 
-> **Sources:** `docs/01-PROBLEM.md` and `docs/02-USER-RESEARCH.md`
->
-> Requirements below are derived only from those documents. P0 = essential for the MVP/demo, P1 = important but not essential for the core demo, P2 = later enhancement.
+## Requirement Classification
+
+This document formalizes the MVP requirements derived from `01-PROBLEM.md`, `02-USER-RESEARCH.md`, and the supplied draft requirements.
+
+### Priority definitions
+
+- **P0 — Must have:** Required for the core end-to-end hackathon journey.
+- **P1 — Should have:** Important to the user experience, but the MVP can demonstrate the core journey without it.
+- **P2 — Could have:** Useful if time permits; not required for the core demo.
 
 ---
 
 # Functional Requirements
 
-## FR-001 — Create an Incident
+## REQ-001 — Describe Situation in Plain Language
 
-- **Requirement ID:** FR-001
-- **Description:** The system must allow a citizen/reporter to create a structured incident or civic-problem report.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A user can start a new incident.
-  - The user can provide the available incident details.
-  - The system creates a case from the submitted information.
-  - The system does not require information that is not relevant to the incident.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-001 |
+| **Description** | The user can describe their situation and need for government assistance in plain language rather than starting with a government form or administrative terminology. |
+| **User it serves** | Primary user — citizen applying for a welfare scheme |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. User can provide a free-form description of their situation. <br>2. The interaction does not require the user to understand government form fields before starting. <br>3. The provided description can be used as the starting point for scheme/eligibility guidance. |
 
 ---
 
-## FR-002 — Support Multiple Incident Categories
+## REQ-002 — Match Situation Against Scheme Eligibility Rules
 
-- **Requirement ID:** FR-002
-- **Description:** The system must support civic problems, public-service problems, and sensitive safety/person-related incidents within the defined product scope.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A user can identify the general type of incident.
-  - The workflow can accommodate both ordinary civic issues and sensitive incidents.
-  - The system does not expose sensitive incidents as public complaints by default.
-
----
-
-## FR-003 — Provide Incident Details
-
-- **Requirement ID:** FR-003
-- **Description:** The system must allow reporters to provide relevant information about what happened, including a description and available contextual information.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A reporter can describe the incident.
-  - The reporter can provide available date/time and location information where relevant.
-  - The reporter can provide additional incident-specific information where applicable.
-  - The system does not invent missing information.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-002 |
+| **Description** | The service evaluates the user's situation and collected information against the eligibility rules of the supported scheme(s) and identifies potentially relevant scheme(s). |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The service considers the user's provided information when evaluating supported scheme(s). <br>2. The result is based on the eligibility rules defined for the supported scheme(s). <br>3. The user receives an understandable result rather than an unexplained match. <br>4. The service does not claim eligibility for an unsupported scheme. |
 
 ---
 
-## FR-004 — Upload Evidence
+## REQ-003 — Ask Clarifying Questions
 
-- **Requirement ID:** FR-004
-- **Description:** The system must allow reporters to attach available evidence to a case.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A reporter can attach supported evidence files.
-  - Evidence is associated with the correct case.
-  - Multiple evidence items can belong to one case.
-  - A report can still be created when no evidence is available.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-003 |
+| **Description** | The agent asks the user for missing information needed to identify a relevant scheme or evaluate eligibility. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The agent identifies when the available information is insufficient. <br>2. The agent asks for the information needed to continue. <br>3. Questions are presented in simple language. <br>4. The interaction does not immediately expose the user to a long raw form. <br>5. The user's answers can be used in the subsequent eligibility/application process. |
 
 ---
 
-## FR-005 — Organize Case Evidence
+## REQ-004 — Explain Eligibility Result
 
-- **Requirement ID:** FR-005
-- **Description:** The system should organize evidence so that it can be understood in the context of the case.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - Evidence is displayed as belonging to a specific case.
-  - The authority-side case view can access associated evidence.
-  - Evidence is not presented as automatically authentic or conclusive merely because it was uploaded.
-
----
-
-## FR-006 — AI-Assisted Incident Structuring
-
-- **Requirement ID:** FR-006
-- **Description:** The system should use AI to help structure and summarize the information supplied by the reporter.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - The system can produce a structured summary from the supplied information.
-  - The analysis is clearly presented as AI-assisted.
-  - The system does not invent facts that were not supplied or verified.
-  - AI output does not determine guilt or criminal liability.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-004 |
+| **Description** | The service explains whether the user appears eligible, not eligible, or still needs to provide information, including the relevant reason or missing information. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The user receives an understandable eligibility outcome. <br>2. The service explains the important eligibility condition(s) behind the outcome. <br>3. Missing information is clearly identified when eligibility cannot yet be determined. <br>4. The service does not present an unsupported or uncertain conclusion as a confirmed fact. |
 
 ---
 
-## FR-007 — Provide Severity Suggestion
+## REQ-005 — Generate Application from User Information
 
-- **Requirement ID:** FR-007
-- **Description:** The system should provide a severity suggestion for a case based on the available incident information.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A severity level can be displayed for a case.
-  - The result is presented as a suggestion/assessment rather than an authoritative legal determination.
-  - Missing information does not get fabricated to justify a severity level.
-
----
-
-## FR-008 — Provide Potentially Relevant Regulatory Context
-
-- **Requirement ID:** FR-008
-- **Description:** The system should provide potentially relevant regulatory/legal context when supported by the available incident information.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - Relevant context can be displayed when available.
-  - The interface does not present the result as definitive legal advice.
-  - The system does not invent laws or provisions.
-  - The context does not determine guilt or criminal liability.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-005 |
+| **Description** | After the relevant scheme and required information have been established, the service prepares an application using information already provided by the user. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Application information is derived from information supplied during the interaction. <br>2. The user is not required to manually reproduce information that has already been collected when it can be reused. <br>3. The generated application is associated with the selected supported scheme. <br>4. Information that is missing or requires confirmation is made visible to the user. |
 
 ---
 
-## FR-009 — Recommend Reporting Direction
+## REQ-006 — Show Application Preview Before Submission
 
-- **Requirement ID:** FR-009
-- **Description:** The system should help the reporter identify an appropriate reporting direction, authority, or channel based on the incident.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - The system provides a recommended reporting direction when enough information is available.
-  - The recommendation can account for incident category and jurisdiction where known.
-  - The system can acknowledge uncertainty rather than presenting an unverified authority as certain.
-  - The user can be directed toward an official reporting channel where available.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-006 |
+| **Description** | The service shows the prepared application to the user for review and confirmation before submission. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The complete prepared application information is visible before submission. <br>2. The user can review the information. <br>3. The user can correct information before submission. <br>4. Submission does not occur before the user confirms the application. |
 
 ---
 
-## FR-010 — Generate Formal Complaint
+## REQ-007 — Simulated Application Submission
 
-- **Requirement ID:** FR-010
-- **Description:** The system should transform the reporter's supplied information into a clear formal complaint draft.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A complaint draft can be generated from the case information.
-  - The draft reflects information actually supplied by the reporter.
-  - The system does not fabricate facts, evidence, or events.
-  - The reporter can review the complaint before using it.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-007 |
+| **Description** | The user can submit the reviewed application within the hackathon prototype, with the submission explicitly treated as a simulation rather than a real government submission. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. A confirmed application can be submitted through the prototype. <br>2. The prototype clearly communicates that the submission is simulated. <br>3. The service creates a record that can be referenced later in the prototype. <br>4. The user receives a tracking ID after simulated submission. |
 
 ---
 
-## FR-011 — Official Reporting / Handoff
+## REQ-008 — Provide Tracking ID
 
-- **Requirement ID:** FR-011
-- **Description:** The system must provide a legitimate path toward the appropriate official reporting channel, either through an actual integration or an explicit handoff.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - The system clearly distinguishes between generating a complaint and officially submitting it.
-  - Where no direct integration exists, the user receives an official-channel handoff.
-  - The system never claims a complaint was officially submitted when it was not.
-
----
-
-## FR-012 — Generate a Case ID
-
-- **Requirement ID:** FR-012
-- **Description:** The system must create a unique case/reference ID for a created report.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A newly created case receives an identifier.
-  - The identifier can be displayed to the reporter.
-  - The identifier identifies the corresponding case.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-008 |
+| **Description** | The service provides the user with a unique tracking ID for the simulated application after submission. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. A tracking ID is displayed after successful simulated submission. <br>2. The tracking ID is associated with the user's simulated application. <br>3. The user can use the tracking information to identify the application later. |
 
 ---
 
-## FR-013 — Case Status and Timeline
+## REQ-009 — Check Application Status Later
 
-- **Requirement ID:** FR-013
-- **Description:** The system must provide a case status and timeline showing the progress of a report.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A reporter can view the case status.
-  - The case contains chronological progress information.
-  - Status changes are represented clearly.
-  - The system does not imply progress that has not actually occurred.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-009 |
+| **Description** | After submission, the user can return and ask for the status of their application without repeating the original application process. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. A submitted simulated application has a status that can be retrieved later. <br>2. The user can request the status in plain language, such as asking what happened to their application. <br>3. The service returns the status of the matching application. <br>4. The service does not invent a status when no matching application exists. <br>5. The displayed status is clearly identified as simulated. |
 
 ---
 
-## FR-014 — Authority Case Review
+## REQ-010 — Handle Non-Eligibility Clearly
 
-- **Requirement ID:** FR-014
-- **Description:** Authority users must be able to review submitted cases and understand the incident information and associated evidence.
-- **User it serves:** Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - An authority user can view assigned/available cases.
-  - Case details are presented in an understandable structure.
-  - Associated evidence can be accessed according to permissions.
-
----
-
-## FR-015 — Authority Assignment
-
-- **Requirement ID:** FR-015
-- **Description:** The authority workflow should allow a case to be assigned for handling.
-- **User it serves:** Authority User
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - An authorized authority user can assign a case.
-  - The assignment is visible in the case state.
-  - The system does not expose assignment information to unauthorized users.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-010 |
+| **Description** | When the user does not appear eligible for the supported scheme(s), the service clearly communicates the result and explains the relevant reason or condition. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P1** |
+| **Acceptance Criteria** | 1. The user is clearly told when no supported scheme appears applicable. <br>2. The service explains the relevant eligibility condition that prevents qualification when that information is available. <br>3. Where the rules support it, the service explains what would need to be different for the user to qualify. <br>4. The conversation does not simply end with a rejection message. <br>5. The service does not invent alternative schemes or eligibility conditions. |
 
 ---
 
-## FR-016 — Authority Status Updates
+## REQ-011 — Handle Unsupported or Out-of-Scope Requests
 
-- **Requirement ID:** FR-016
-- **Description:** Authority users must be able to update case progress and status.
-- **User it serves:** Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - An authorized authority user can change the case status.
-  - Progress information can be added.
-  - Updates appear in the case timeline.
-  - Updates identify that they came from the authority workflow.
-
----
-
-## FR-017 — Request Additional Information
-
-- **Requirement ID:** FR-017
-- **Description:** The authority workflow should support requesting additional information when a case is incomplete.
-- **User it serves:** Authority User; Citizen / Reporter
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - An authority user can indicate that additional information is required.
-  - The request is associated with the case.
-  - The reporter can understand what information is requested.
-
----
-
-## FR-018 — Record Resolution
-
-- **Requirement ID:** FR-018
-- **Description:** The authority workflow must allow a case to be marked as resolved and record resolution information.
-- **User it serves:** Authority User; Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - An authorized authority user can mark a case as resolved.
-  - Resolution information can be recorded.
-  - The final status is visible to the reporter.
-  - The system does not claim resolution without an actual recorded resolution state.
-
----
-
-## FR-019 — Resolution Evidence / Verification
-
-- **Requirement ID:** FR-019
-- **Description:** The system should support recording or reviewing evidence associated with resolution where appropriate.
-- **User it serves:** Authority User; Citizen / Reporter
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - Resolution evidence can be associated with the case where applicable.
-  - The system distinguishes evidence from AI-generated interpretation.
-  - Verification does not automatically establish facts beyond the available evidence.
-
----
-
-## FR-020 — Immediate Safety Guidance
-
-- **Requirement ID:** FR-020
-- **Description:** For incidents involving immediate danger, the system must prioritize access to appropriate emergency/support guidance rather than forcing the user through the normal reporting workflow first.
-- **User it serves:** Victim / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - A user can identify that an incident requires immediate help.
-  - Emergency/support guidance is presented before or alongside normal reporting.
-  - The user is not required to complete the full digital report before accessing urgent guidance.
-
----
-
-## FR-021 — Private Handling of Sensitive Cases
-
-- **Requirement ID:** FR-021
-- **Description:** Sensitive person-related and safety incidents must be private by default.
-- **User it serves:** Victim / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Sensitive reports are not publicly displayed by default.
-  - Sensitive evidence is not publicly exposed by default.
-  - The system does not provide a public alleged-offender feed.
-  - Access to sensitive case information is restricted to appropriate users.
-
----
-
-## FR-022 — Case Search / Retrieval
-
-- **Requirement ID:** FR-022
-- **Description:** A reporter should be able to retrieve a case using its case/reference ID.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - A valid case ID can retrieve the corresponding case.
-  - An invalid/nonexistent ID produces an appropriate result.
-  - Sensitive case information is not exposed merely by guessing an identifier.
+| Field | Requirement |
+|---|---|
+| **ID** | REQ-011 |
+| **Description** | When a user's situation or request falls outside the schemes supported by the MVP, the service clearly communicates the limitation instead of pretending to support it. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P1** |
+| **Acceptance Criteria** | 1. The service does not claim that an unsupported scheme is available. <br>2. The user is told when their request falls outside the supported scope. <br>3. The service does not fabricate eligibility rules, application requirements, or government procedures for unsupported services. |
 
 ---
 
 # Non-Functional Requirements
 
-## NFR-001 — Privacy
+## NFR-001 — Use Simple, Non-Technical Language
 
-- **Requirement ID:** NFR-001
-- **Description:** The system must protect the privacy of reporters, victims, and sensitive evidence.
-- **User it serves:** Citizen / Reporter; Victim
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Sensitive cases are private by default.
-  - Personal information is not unnecessarily displayed.
-  - Sensitive evidence is not publicly accessible by default.
-  - The system does not expose alleged offenders publicly.
+| Field | Requirement |
+|---|---|
+| **ID** | NFR-001 |
+| **Description** | The citizen-facing experience uses simple, understandable language and avoids unnecessary government or technical jargon. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. User-facing questions and explanations are written in plain language. <br>2. Government terminology is explained when it is necessary. <br>3. The experience does not require prior knowledge of government procedures to complete the core journey. <br>4. Eligibility and application information is presented in a way the target user can understand. |
 
 ---
 
-## NFR-002 — Safety
+## NFR-002 — Transparency About Simulation
 
-- **Requirement ID:** NFR-002
-- **Description:** The system must avoid creating additional risk for users reporting sensitive incidents.
-- **User it serves:** Victim / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Immediate-danger users can access urgent guidance without completing the full workflow.
-  - The interface does not encourage public accusations or naming alleged offenders.
-  - Sensitive reports are handled privately by default.
-
----
-
-## NFR-003 — Accuracy and Truthfulness
-
-- **Requirement ID:** NFR-003
-- **Description:** The system must distinguish user-provided information, AI-generated interpretation, and verified information.
-- **User it serves:** All users
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - AI-generated content is identifiable as AI-assisted.
-  - The system does not fabricate missing facts.
-  - The system does not present AI output as independent evidence.
-  - The system does not claim an official action occurred unless it actually occurred.
+| Field | Requirement |
+|---|---|
+| **ID** | NFR-002 |
+| **Description** | The prototype clearly distinguishes simulated application submission and status information from real government transactions. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. The user is informed that application submission is simulated. <br>2. The user is informed that application status is simulated. <br>3. The prototype does not imply that it has submitted information to a real government department. |
 
 ---
 
-## NFR-004 — Legal/Regulatory Caution
+## NFR-003 — Trustworthy and Non-Fabricated Guidance
 
-- **Requirement ID:** NFR-004
-- **Description:** Regulatory context must be presented cautiously and must not be represented as definitive legal advice or a determination of liability.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Regulatory information is labeled as potentially relevant context.
-  - The system does not determine guilt or criminal liability.
-  - The system does not invent laws or legal provisions.
-
----
-
-## NFR-005 — Reliability
-
-- **Requirement ID:** NFR-005
-- **Description:** The core reporting and case-tracking workflow should remain usable when optional AI functionality is unavailable.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - An AI failure does not falsely produce an AI result.
-  - Users receive a clear error/fallback state.
-  - Core case information remains accessible.
+| Field | Requirement |
+|---|---|
+| **ID** | NFR-003 |
+| **Description** | The service should not invent eligibility rules, scheme details, application requirements, statuses, or government procedures that are not established for the supported MVP schemes. |
+| **User it serves** | Primary user — citizen |
+| **Priority** | **P0** |
+| **Acceptance Criteria** | 1. Eligibility outcomes are grounded in the defined rules for supported schemes. <br>2. Missing or uncertain information is identified rather than guessed. <br>3. Unsupported schemes or procedures are not presented as available facts. <br>4. Simulated information is distinguishable from real-world government information. |
 
 ---
 
-## NFR-006 — Usability
+# MVP Requirement Summary
 
-- **Requirement ID:** NFR-006
-- **Description:** The reporting workflow should minimize uncertainty and make the next action clear.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - The user can understand the purpose of each major step.
-  - The next action is clear.
-  - Error and incomplete states provide understandable guidance.
-  - The workflow does not require unnecessary information.
-
----
-
-## NFR-007 — Mobile-Friendly Experience
-
-- **Requirement ID:** NFR-007
-- **Description:** The citizen-facing experience should be usable on a mobile device because reporting may occur in real-world situations.
-- **User it serves:** Citizen / Reporter; Victim
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Core reporting actions are usable on a phone-sized screen.
-  - Evidence upload is accessible from the mobile workflow.
-  - Case status can be viewed without requiring a desktop interface.
+| ID | Short Description | Type | Priority |
+|---|---|---|---|
+| REQ-001 | Describe situation in plain language | Functional | P0 |
+| REQ-002 | Match against scheme eligibility rules | Functional | P0 |
+| REQ-003 | Ask clarifying questions | Functional | P0 |
+| REQ-004 | Explain eligibility result | Functional | P0 |
+| REQ-005 | Generate application | Functional | P0 |
+| REQ-006 | Preview and confirm application | Functional | P0 |
+| REQ-007 | Simulated submission | Functional | P0 |
+| REQ-008 | Provide tracking ID | Functional | P0 |
+| REQ-009 | Check status later | Functional | P0 |
+| REQ-010 | Handle non-eligibility clearly | Functional | P1 |
+| REQ-011 | Handle unsupported requests | Functional | P1 |
+| NFR-001 | Simple, non-technical language | Non-functional | P0 |
+| NFR-002 | Transparency about simulation | Non-functional | P0 |
+| NFR-003 | Trustworthy, non-fabricated guidance | Non-functional | P0 |
 
 ---
 
-## NFR-008 — Accessibility
+# End-to-End MVP Acceptance Test
 
-- **Requirement ID:** NFR-008
-- **Description:** The user-facing workflow should be accessible and understandable to users with different needs.
-- **User it serves:** All users
-- **Priority:** P1
-- **Acceptance Criteria:**
-  - Form controls have understandable labels.
-  - Important information is not communicated through color alone.
-  - Interactive elements are usable with standard accessibility mechanisms.
-  - Text remains readable across supported screen sizes.
+A successful MVP should support the following journey:
 
----
+> **A citizen describes their situation in plain language → the agent asks only the necessary clarifying questions → the service identifies a relevant supported scheme and explains the eligibility result → the application is prepared from the citizen's information → the citizen reviews and confirms it → the prototype performs a clearly simulated submission → the citizen receives a tracking ID → the citizen can later ask for the application's status.**
 
-## NFR-009 — Data Integrity
+The MVP should also demonstrate the important negative path:
 
-- **Requirement ID:** NFR-009
-- **Description:** Case information, evidence associations, and status updates must remain associated with the correct case.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Evidence belongs to the correct case.
-  - Updates belong to the correct case.
-  - Case IDs consistently identify their corresponding case.
-  - A case status change does not modify unrelated cases.
+> **A citizen describes their situation → the service determines that no supported scheme appears applicable → the service clearly explains why, where supported by the known rules, instead of simply dead-ending the conversation.**
 
----
-
-## NFR-010 — Permission-Aware Access
-
-- **Requirement ID:** NFR-010
-- **Description:** Access to case and evidence information must depend on the user's role and the sensitivity of the case.
-- **User it serves:** Citizen / Reporter; Authority User
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Unauthorized users cannot access restricted case information.
-  - Sensitive case information is not exposed through public views.
-  - Authority-only operations are restricted to authority users.
-
----
-
-## NFR-011 — Transparent External Submission State
-
-- **Requirement ID:** NFR-011
-- **Description:** The system must clearly distinguish between a generated complaint, an official handoff, and a confirmed official submission.
-- **User it serves:** Citizen / Reporter
-- **Priority:** P0
-- **Acceptance Criteria:**
-  - Each state is explicitly represented.
-  - The system never labels a generated draft as submitted.
-  - The system never claims an external authority acknowledged a case without confirmation.
-
----
-
-# Requirement Priority Summary
-
-| Priority | Meaning | MVP Treatment |
-|---|---|---|
-| **P0** | Essential to the core problem and safe demo | Must be implemented |
-| **P1** | Important supporting capability | Implement if time permits |
-| **P2** | Future enhancement / lower priority | Not required for the initial hackathon MVP |
-
----
-
-# Requirements Not Included
-
-The following are intentionally **NOT REQUIRED at the requirements stage** because they are not sufficiently supported by the problem/user research:
-
-- Offline capability: **NOT REQUIRED**
-  - Reason: The problem research identifies mobile usability and network interruptions as an edge case, but does not establish offline operation as a required user need.
-
-- Real-time chat: **NOT REQUIRED**
-  - Reason: The problem and user research require case communication/status updates but do not establish real-time messaging as necessary.
-
-- Public social feed: **NOT REQUIRED**
-  - Reason: Sensitive cases must be private by default and public accusation is explicitly outside the product boundary.
-
-- Payments: **NOT REQUIRED**
-  - Reason: No payment-related user need exists in the problem or user research.
-
-- Native mobile application: **NOT REQUIRED**
-  - Reason: The user research establishes the need for a mobile-friendly citizen workflow, not a native mobile application.
-
-- Automated legal decision-making: **NOT REQUIRED**
-  - Reason: The product must provide contextual regulatory information without determining guilt or liability.
-
-- Automatic official submission for every authority: **NOT REQUIRED**
-  - Reason: Availability of official APIs and submission mechanisms is unknown; the supported requirement is an official handoff or legitimate integration where available.
-
+This end-to-end journey is the primary measure of whether the requirements solve the problem identified in `01-PROBLEM.md` and `02-USER-RESEARCH.md`.

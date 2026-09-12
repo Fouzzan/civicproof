@@ -1,1435 +1,989 @@
-# CivicProof --- Technology Stack Decision
+# 10 — Technology Stack
 
-## Purpose
+This document validates the proposed technology stack against the architecture and MVP decisions in `01-PROBLEM.md` through `09-AI-DESIGN.md`.
 
-This document selects the **simplest technology choices that satisfy the
-architecture already decided in `docs/06-ARCHITECTURE-DECISION.md`**.
+The guiding principle is:
 
-The goal is not to build the most sophisticated system. The goal is to
-build a reliable, polished MVP within a **\~4-hour hackathon window**.
+> **Choose the smallest reliable stack that can demonstrate Sahayak's end-to-end agent journey within the hackathon time limit.**
 
-The architecture requires:
+The proposed stack is intentionally simple: one Next.js application, one local database, one AI provider, and local-first deployment.
 
--   UI
--   Backend
--   Persistent relational database
--   Internal API
--   AI
--   Authentication
+---
 
-Cloud deployment is optional architecturally, but strongly preferred for
-the hackathon demo.
+# 1. Proposed Stack
 
-Agents and background processing are **NOT REQUIRED** and are
-intentionally excluded.
+| Category | Choice |
+|---|---|
+| Frontend | **Next.js + TypeScript + Tailwind CSS** |
+| Backend | **Next.js API Routes** |
+| Database | **SQLite + better-sqlite3** |
+| AI / Agent | **Claude API with tool use** |
+| Hosting | **Local-first; Vercel if time allows** |
 
-------------------------------------------------------------------------
+## Overall validation
 
-# 1. Decision Summary
+**Decision: APPROVED for the MVP.**
 
-  -----------------------------------------------------------------------
-  Category                Final Choice            Why
-  ----------------------- ----------------------- -----------------------
-  **Frontend**            **Next.js + React +     Gives us the UI and
-                          TypeScript + Tailwind   backend in one
-                          CSS + shadcn/ui**       application while
-                                                  making a polished
-                                                  mobile-first interface
-                                                  fast to build.
+The stack fits the architecture because:
 
-  **Backend**             **Next.js Route         Provides the required
-                          Handlers**              server-side logic and
-                                                  internal API without
-                                                  introducing a separate
-                                                  backend project.
+- The frontend can provide the required conversational UI.
+- Next.js API routes provide the required internal backend boundary.
+- SQLite provides the minimal persistence needed for application/tracking state.
+- Claude can power Sahayak's language understanding and tool-selection loop.
+- Local-first execution minimizes deployment risk during a time-constrained hackathon.
+- Keeping frontend and backend in one project avoids unnecessary service boundaries.
 
-  **Database**            **Neon PostgreSQL +     Satisfies the required
-                          Prisma**                persistent relational
-                                                  model and works cleanly
-                                                  with a deployed Next.js
-                                                  app.
+No part of this stack requires a multi-service or production-scale architecture.
 
-  **AI**                  **OpenAI API**          Simple server-side API
-                                                  integration for the
-                                                  bounded AI Assistant
-                                                  operations required by
-                                                  the MVP.
+---
 
-  **Hosting**             **Vercel**              Natural deployment
-                                                  target for Next.js and
-                                                  extremely fast to
-                                                  deploy/share for a
-                                                  hackathon demo.
-  -----------------------------------------------------------------------
-
-### Supporting authentication choice
-
-Because authentication is REQUIRED by the architecture, the MVP will use
-**Clerk** for authentication and role-aware identity.
-
-Clerk is intentionally treated as a supporting service rather than a
-separate architectural category.
-
-------------------------------------------------------------------------
-
-# 2. Frontend --- Next.js + React + TypeScript + Tailwind + shadcn/ui
+# 2. Frontend — Next.js + TypeScript + Tailwind CSS
 
 ## Choice
 
-**Next.js (App Router) + React + TypeScript + Tailwind CSS + shadcn/ui**
+**Next.js + TypeScript + Tailwind CSS**
 
-This is one frontend stack rather than several independent technologies:
+The frontend will provide the citizen-facing conversational experience.
 
-``` text
-Next.js
-  └── React + TypeScript
-        ├── Tailwind CSS
-        └── shadcn/ui
-```
+It should support:
 
-## Why it fits the architecture
+- Chat-style interaction.
+- Plain-language questions and responses.
+- Eligibility result display.
+- Filled application preview.
+- User corrections.
+- Explicit confirmation before simulated submission.
+- Tracking ID display.
+- Simulated status display.
 
-The architecture requires a user-facing UI for:
+## Why it fits
 
--   Citizen incident reporting
--   Incident type selection
--   Evidence upload
--   AI analysis
--   Severity display
--   Reporting direction
--   Complaint review
--   Case ID
--   Case timeline
--   Authority dashboard
--   Authority status/resolution actions
--   Safety guidance
--   Sensitive-case indicators
--   Mobile-friendly usage
+### Next.js
 
-Next.js/React handles all of these in one application.
-
-It also lets the frontend and backend live in the same project, which is
-especially valuable in a four-hour hackathon.
-
-## Why this is the simplest option
-
-We do **not** need:
-
--   A separate React frontend repository
--   A separate Express backend repository
--   A separate API gateway
--   A mobile app
--   A native iOS/Android project
-
-The same Next.js application can contain:
-
-``` text
-app/
-  citizen pages
-  authority pages
-  case pages
-  API route handlers
-```
-
-That reduces setup, configuration, debugging, and deployment work.
-
-## Alternatives
-
-### Alternative A --- React + Vite
-
-React + Vite would be a very simple frontend.
-
-However, it would leave us needing a separate backend such as
-Express/Fastify/NestJS because the architecture explicitly requires
-trusted server-side logic and an internal API.
-
-That means:
-
-``` text
-React/Vite
-     ↓
-Separate backend
-     ↓
-Database
-```
-
-instead of:
-
-``` text
-Next.js
- ├── UI
- └── API/backend
-```
-
-For this hackathon, the additional project and deployment complexity is
-not worthwhile.
-
-### Alternative B --- React Native / Expo
-
-This could provide a native mobile experience.
-
-It is rejected because the requirement is **mobile-friendly**, not
-native mobile. Building a web application is substantially faster for
-the four-hour constraint.
-
-### Alternative C --- Plain HTML/CSS/JavaScript
-
-This would have the lowest initial setup cost but becomes awkward for:
-
--   Multiple workflows
--   Case state
--   Authority dashboard
--   Forms
--   Reusable components
--   API state
--   Authentication
--   Conditional sensitive-case UI
-
-It is not the best choice for the actual MVP.
-
-## Complexity and setup time
-
-**Low.**
-
-Approximate hackathon setup:
-
--   Create Next.js project: \~2--5 minutes
--   Tailwind/shadcn setup: \~5--10 minutes
--   Build initial pages/components: ongoing
-
-Most of the remaining time goes toward actual product functionality
-rather than framework configuration.
-
-## Cost
-
-The framework and UI libraries are free/open source.
-
-There is no frontend licensing cost for the MVP.
-
-## Real risks
-
-### Risk 1 --- Next.js has many features
-
-Next.js can become complicated if we start using every feature.
-
-**Mitigation:** Use only:
-
--   App Router
--   React components
--   Route Handlers
--   Server-side environment variables
--   Basic server/client components
-
-Avoid unnecessary server actions, middleware complexity, advanced
-caching, streaming, etc.
-
-### Risk 2 --- UI polish can consume the whole hackathon
-
-shadcn/ui makes components easy to create, but we could waste time
-perfecting them.
-
-**Rule:** Build the complete workflow first. Polish only after the
-end-to-end demo works.
-
-------------------------------------------------------------------------
-
-# 3. Backend --- Next.js Route Handlers
-
-## Choice
-
-**Next.js Route Handlers**
-
-The backend and internal API will live inside the same Next.js project.
-
-Example:
-
-``` text
-app/api/cases/route.ts
-app/api/cases/[caseId]/route.ts
-app/api/cases/[caseId]/ai-analysis/route.ts
-app/api/cases/[caseId]/complaint/route.ts
-app/api/cases/[caseId]/handoff/route.ts
-app/api/cases/[caseId]/status/route.ts
-app/api/cases/[caseId]/resolution/route.ts
-```
-
-## Why it fits the architecture
-
-`06-ARCHITECTURE-DECISION.md` requires:
-
--   Trusted server-side case handling
--   Permission checks
--   Evidence association
--   Case ID generation
--   Status/timeline updates
--   AI calls without exposing API keys
--   Honest handoff states
--   An internal API
-
-Route Handlers provide exactly that boundary.
-
-The API document also explicitly defines a **small internal application
-API**, not a public developer API.
-
-Therefore we do not need a separate API service.
-
-## Why this is the simplest option
-
-The alternative would be:
-
-``` text
-Next.js frontend
-      ↓
-Express/Fastify backend
-      ↓
-Database
-```
-
-That creates another:
-
--   project
--   server
--   deployment
--   environment configuration
--   codebase boundary
--   source of bugs
-
-For this MVP, there is no architectural reason to pay that complexity
-cost.
-
-## Alternatives
-
-### Alternative A --- Express.js
-
-Express is mature and simple.
-
-However, it would require a separate backend application and deployment
-strategy.
-
-**Rejected for the hackathon because it duplicates infrastructure we
-already get from Next.js.**
-
-### Alternative B --- NestJS
-
-NestJS provides excellent structure for large applications.
-
-It is unnecessary for a small five-table hackathon MVP.
-
-It would introduce more concepts and files than needed.
-
-### Alternative C --- Separate Fastify API
-
-Fastify is lightweight and fast, but still creates the same
-two-application problem.
-
-Not needed.
-
-## Complexity and setup time
-
-**Very low.**
-
-No separate backend project is required.
-
-The main work is implementing the small set of API endpoints already
-defined in `08-API.md`.
-
-## Cost
-
-No additional software cost.
-
-The backend runs as part of the Next.js application and can be deployed
-with Vercel.
-
-## Real risks
-
-### Risk 1 --- Mixing UI and backend logic
-
-A beginner could put database calls directly into client components.
-
-**Rule:** Database access, authentication checks, AI API calls, and
-permission decisions stay server-side.
-
-### Risk 2 --- Serverless execution limits
-
-Large video processing or heavy workloads would eventually need
-background processing.
-
-That is explicitly outside the MVP.
-
-For the hackathon, keep evidence files small and AI operations bounded.
-
-------------------------------------------------------------------------
-
-# 4. Database --- Neon PostgreSQL + Prisma
-
-## Choice
-
-**Neon PostgreSQL + Prisma**
-
-The database remains a conventional relational PostgreSQL database.
-
-Prisma is the ORM used to interact with it.
-
-## Why it fits the architecture
-
-The database decision requires:
-
--   Persistent data
--   Relational structure
--   Case records
--   Users
--   Evidence references
--   AI analysis
--   Timeline events
--   Authority state
--   Resolution state
-
-The database design contains five core entities:
-
-``` text
-User
-  ↓
-Case
- ├── Evidence
- ├── AIAnalysis
- └── TimelineEvent
-```
-
-PostgreSQL is directly suited to this model.
-
-Prisma makes the five-table schema straightforward to define and query
-from TypeScript.
-
-## Why not SQLite?
-
-SQLite is arguably the simplest database to start locally.
-
-However, the hackathon product should preferably be deployed so judges
-can access it.
-
-A local SQLite file introduces deployment/persistence complications in
-serverless environments.
-
-We would then have to think about:
-
--   filesystem persistence
--   deployment storage
--   writable volumes
--   database synchronization
-
-That is unnecessary risk.
-
-**PostgreSQL avoids this problem.**
-
-## Why Neon?
-
-Neon provides hosted PostgreSQL without requiring us to manage a
-database server.
-
-The important hackathon property is:
-
-``` text
-PostgreSQL
-     +
-Hosted
-     +
-Works with deployed Next.js
-     +
-No database server to administer
-```
-
-## Alternatives
-
-### Alternative A --- Supabase PostgreSQL
-
-Supabase is a strong alternative and also provides
-authentication/storage/backend services.
-
-However, CivicProof does not need the full Supabase platform for the
-MVP.
-
-Adding another broad platform could make it tempting to use:
-
--   Supabase Auth
--   Supabase Storage
--   Supabase Edge Functions
--   Supabase APIs
-
-That would expand the technology surface unnecessarily.
-
-For this architecture, we only need a persistent relational database.
-
-### Alternative B --- MongoDB
-
-MongoDB could store the case documents flexibly.
-
-It is rejected because our database design is already a small, clearly
-relational model with:
-
--   Users
--   Cases
--   Evidence
--   AI analysis
--   Timeline events
-
-A relational database is the more direct match.
-
-### Alternative C --- Local SQLite
-
-Very simple locally, but less convenient for a deployed multi-user demo.
-
-## Complexity and setup time
-
-**Low to medium.**
-
-Expected setup:
-
-1.  Create Neon database.
-2.  Add PostgreSQL connection string.
-3.  Install Prisma.
-4.  Define the five models.
-5.  Run the migration.
-6.  Generate Prisma client.
-
-Once configured, CRUD operations become straightforward.
-
-Approximate initial setup: **10--20 minutes** for someone following a
-guided setup.
-
-## Cost
-
-Neon provides a free tier suitable for a small hackathon/demo workload.
-
-The expected CivicProof workload is tiny:
-
--   few users
--   few cases
--   low concurrency
--   small evidence metadata
--   user-triggered AI requests
-
-Therefore there is no reason to pay for a production database during the
-hackathon.
-
-## Real risks
-
-### Risk 1 --- Prisma setup errors
-
-Database URLs, migrations, and Prisma versions can cause setup friction.
-
-**Mitigation:** Set up the database early, before building the full
-workflow.
-
-### Risk 2 --- Evidence files are not database rows
-
-The architecture explicitly says the database stores evidence
-references, not actual file bytes.
-
-For the four-hour MVP, evidence storage should remain deliberately
-simple.
-
-### Risk 3 --- Production privacy requirements are much stronger
-
-A hackathon database is not automatically production-ready for sensitive
-reports.
-
-For the demo:
-
--   enforce authentication
--   enforce server-side case authorization
--   do not expose sensitive cases publicly
--   never put private evidence in public URLs
--   avoid real sensitive personal data
-
-A real deployment would require a much deeper privacy/security review.
-
-------------------------------------------------------------------------
-
-# 5. AI --- OpenAI API
-
-## Choice
-
-**OpenAI API**, called only from the Next.js server.
-
-The AI layer is a bounded **AI Assistant**, not an agent.
-
-The application will use it for the two primary operations defined in
-`09-AI-DESIGN.md`:
-
-### Operation A --- Case Analysis
-
-``` text
-Incident information
-       ↓
-OpenAI API
-       ↓
-Structured result
- ├── summary
- ├── structured data
- ├── severity suggestion
- └── reporting-direction assistance
-```
-
-### Operation B --- Complaint Generation
-
-``` text
-Case information
-       ↓
-OpenAI API
-       ↓
-Reviewable complaint draft
-```
-
-## Why it fits the architecture
-
-The architecture requires AI because it is a P0 product capability.
-
-The AI design specifically says the lowest suitable level is an **AI
-Assistant**.
-
-OpenAI's API can perform the required natural-language tasks without
-introducing:
-
--   autonomous agents
--   tool-using loops
--   multi-agent orchestration
--   vector databases
--   AI memory
--   background workers
-
-The backend controls when the AI is called and exactly what information
-is sent.
-
-## Why not build our own ML model?
-
-The MVP needs:
-
--   natural-language understanding
--   summarization
--   structured extraction
--   complaint drafting
--   reporting guidance
-
-Training a custom model would be dramatically more complex and would not
-help us finish the hackathon.
-
-## Alternatives
-
-### Alternative A --- Anthropic API
-
-Technically a strong fit because Claude is capable of the same bounded
-language tasks.
-
-However, the team already has Claude Max for development assistance, and
-a Claude Max subscription should **not** be assumed to provide API
-credits.
-
-Using a separate API still requires API billing/configuration.
-
-For the application itself, we choose OpenAI to keep the product
-integration independent from the development assistant being used in VS
-Code.
-
-### Alternative B --- Google Gemini API
-
-Also technically suitable and potentially attractive for low-cost
-experimentation.
-
-However, adding another provider solely to optimize a small hackathon
-bill is not worth introducing additional decision complexity.
-
-### Alternative C --- Local model
-
-Running a local model would avoid API usage costs but introduces:
-
--   model installation
--   hardware requirements
--   model selection
--   latency
--   reliability issues
--   much more setup
-
-Not suitable for a four-hour build.
-
-### Alternative D --- AI Agent framework
-
-Rejected.
-
-The architecture explicitly says agents are not required.
-
-CivicProof only needs:
-
-``` text
-User action
-   ↓
-Bounded AI call
-   ↓
-Structured result
-```
-
-not:
-
-``` text
-AI decides what to do
-   ↓
-AI chooses tools
-   ↓
-AI navigates websites
-   ↓
-AI submits
-   ↓
-AI checks results
-   ↓
-AI retries
-```
-
-## Complexity and setup time
-
-**Low.**
-
-Basic setup is:
-
-1.  Create API key.
-2.  Store it as a server-side environment variable.
-3.  Install the official SDK.
-4.  Create two server-side AI functions.
-5.  Validate the returned structured data.
-6.  Display the result as AI-assisted.
-
-Approximate initial setup: **5--15 minutes**, assuming API access is
-already available.
-
-## Cost
-
-The API is usage-based rather than included automatically with a
-ChatGPT/Claude subscription.
-
-For a small hackathon demo, usage should be low if the application makes
-only a few calls per case.
-
-The important rule is:
-
-> **Do not send repeated AI requests on every keystroke or page
-> render.**
-
-Call AI only when the user explicitly requests analysis or complaint
-generation.
-
-## Real risks
-
-### Risk 1 --- Hallucination
-
-This is the largest application-level risk.
-
-The AI could invent:
-
--   facts
--   authorities
--   laws
--   evidence
--   legal conclusions
-
-**Mitigation:**
-
--   strict prompts
--   structured output
--   output validation
--   AI labeling
--   trusted configured reporting information
--   human review
--   never allow AI to perform official actions
-
-### Risk 2 --- Sensitive information sent to a third party
-
-CivicProof may handle sensitive reports.
-
-**Mitigation for the MVP:**
-
--   send only necessary information
--   avoid unnecessary personal information
--   do not use real sensitive victim data during the demo
--   keep AI calls server-side
--   review the selected provider's current data-handling terms before
-    production use
-
-### Risk 3 --- API failure
-
-If the AI provider is unavailable, the case should not disappear or
-pretend that analysis succeeded.
-
-The case remains usable and the UI should show an explicit AI
-failure/fallback state.
-
-### Risk 4 --- API key exposure
-
-Never put the AI key in frontend code.
-
-It must exist only in server-side environment variables.
-
-------------------------------------------------------------------------
-
-# 6. Hosting --- Vercel
-
-## Choice
-
-**Vercel**
-
-## Why it fits the architecture
-
-Cloud deployment is optional in the architecture, but it is highly
-valuable for the hackathon.
-
-Vercel is particularly suitable because CivicProof is built with
-Next.js.
-
-Deployment becomes:
-
-``` text
-GitHub
-   ↓
-Vercel
-   ↓
-Live CivicProof URL
-```
+Next.js is a good fit because the backend is also being implemented in the same project.
 
 This allows:
 
--   judges to open the product
--   teammates to test from different devices
--   mobile workflow testing
--   easy sharing
--   a professional demonstration
-
-## Why this is the simplest option
-
-A separate VPS would require:
-
--   server setup
--   deployment configuration
--   process management
--   domain configuration
--   SSL handling
--   more debugging
-
-Vercel removes most of that.
-
-## Alternatives
-
-### Alternative A --- Local development only
-
-Technically acceptable because cloud deployment is optional.
-
-However, it is weaker for a hackathon because judges may not be able to
-access the product easily.
-
-**Use local development as the fallback, not the primary demo.**
-
-### Alternative B --- Netlify
-
-A valid web-hosting option, but Vercel has a more natural fit with
-Next.js.
-
-### Alternative C --- Railway / Render
-
-Both can host full-stack applications, but they add more
-server/deployment concepts than necessary for this particular Next.js
-application.
-
-## Complexity and setup time
-
-**Very low.**
-
-Typical deployment flow:
-
-``` text
-Push repository to GitHub
-        ↓
-Import into Vercel
-        ↓
-Add environment variables
-        ↓
-Deploy
+```text
+Next.js application
+├── Citizen UI
+├── API routes
+├── Agent orchestration
+└── Database access
 ```
 
-Initial deployment can often be completed in roughly **5--10 minutes**,
-excluding debugging.
+The team does not need to create and configure a separate frontend and backend application.
 
-## Cost
+This directly supports the architecture decision that an internal API boundary is required while keeping the implementation small.
 
-Vercel has a free/hobby option suitable for a small hackathon demo,
-subject to its current usage limits and terms.
+### TypeScript
 
-The expected traffic is tiny.
+TypeScript provides:
 
-## Real risks
+- Typed API request/response structures.
+- Typed agent state.
+- Typed tool inputs and outputs.
+- Better protection against invalid application state.
+- Easier coordination between frontend and backend code.
 
-### Risk 1 --- Environment variables
+This is particularly useful for Sahayak because the agent passes structured data between multiple tools.
 
-The deployed app needs:
+### Tailwind CSS
 
--   database URL
--   AI API key
--   authentication configuration
+Tailwind provides a fast way to build the conversational UI without introducing a large component/styling system.
 
-These must be configured in Vercel.
-
-### Risk 2 --- Serverless limitations
-
-Very large uploads and long-running processing are not ideal.
-
-That is another reason the MVP should avoid:
-
--   large video processing
--   background jobs
--   forensic analysis
--   long-running AI tasks
-
-### Risk 3 --- Free-tier limits
-
-A public demo could theoretically exceed service limits.
-
-For a small hackathon demonstration this is unlikely, but the team
-should know the limits before production deployment.
-
-------------------------------------------------------------------------
-
-# 7. Authentication --- Supporting Technology
-
-Authentication is not optional in the architecture.
-
-## Choice
-
-**Clerk**
-
-Use Clerk only for:
-
--   user authentication
--   current-user identity
--   basic role distinction
-
-The application/database remains responsible for case authorization.
-
-Example:
-
-``` text
-Clerk
-  ↓
-Who is this user?
-  ↓
-CivicProof backend
-  ↓
-What may this user access?
-```
-
-## Why Clerk
-
-Implementing secure authentication from scratch during a four-hour
-hackathon is a poor use of time.
-
-Clerk provides a ready-made authentication flow while allowing the
-application to obtain the authenticated user identity.
-
-## Important boundary
-
-Authentication does **not** mean:
-
-> "If Clerk says the user is logged in, they can access every case."
-
-The backend still checks:
-
-``` text
-Citizen:
-case.reporterId === currentUser.id
-
-Authority:
-case.authorityUserId === currentUser.id
-```
-
-Sensitive cases remain private.
+The MVP needs a polished but focused interface rather than a large design system.
 
 ## Alternative
 
-**Auth.js** would reduce dependence on a third-party authentication
-platform and is a valid long-term option.
+Possible alternatives:
 
-However, for a four-hour hackathon, Clerk is simpler to get working
-reliably.
+### React + Vite
 
-## Real risk
+This would provide a lightweight frontend, but would require a separate backend service or additional setup for the API layer.
 
-Authentication providers add another external dependency and may have
-plan/configuration constraints.
+That creates unnecessary project boundaries for this MVP.
 
-For the hackathon, this is acceptable because authentication is a
-genuine architectural requirement and implementing it ourselves would
-consume valuable time.
+### Plain React/CSS
 
-------------------------------------------------------------------------
+Possible, but slower to build a polished responsive interface consistently.
 
-# 8. File / Evidence Storage Decision
+### Component libraries
 
-Evidence upload is P0, so the technology stack needs a practical storage
-strategy.
+A component library could improve visual consistency, but adding and configuring another dependency is not necessary for the core hackathon journey.
 
-For the **four-hour MVP**, do not build a sophisticated file-storage
-architecture.
+If an existing project already uses a component library, reusing it is preferable to replacing it.
 
-Use **Vercel Blob** for uploaded evidence if the account/project is
-configured for it.
+## Setup time
 
-The database stores:
+**Low**
 
-``` text
-Evidence
- ├── fileName
- ├── fileType
- ├── storageReference
- ├── caseId
- └── uploadedBy
+Assuming the project already uses Next.js and TypeScript, the team can focus immediately on the chat experience rather than setting up a new frontend architecture.
+
+Approximate new-project setup:
+
+> **15–30 minutes**
+
+Existing-project integration:
+
+> **Near-zero architectural setup**
+
+## Cost
+
+**Free for local development.**
+
+Next.js, TypeScript, and Tailwind can be used without a paid frontend license.
+
+## Risks
+
+### Risk: UI takes too much time
+
+A chat interface can easily become over-designed.
+
+**Mitigation:** Build the minimum screens/components needed for the core journey.
+
+### Risk: Too much frontend state
+
+The frontend should not become the source of truth for eligibility or application state.
+
+**Mitigation:** Keep business state and rules in the backend.
+
+### Risk: Styling consumes hackathon time
+
+**Mitigation:** Prioritize usability and demo clarity over a complete design system.
+
+---
+
+# 3. Backend — Next.js API Routes
+
+## Choice
+
+**Next.js API Routes in the same project**
+
+The backend exposes the internal API described in `08-API.md`.
+
+Core endpoints:
+
+```text
+POST /api/chat
+GET  /api/schemes
+GET  /api/application/:id
 ```
 
-The actual file lives in object storage.
+The API layer coordinates:
 
-## Why
+- Sahayak's agent loop.
+- Tool invocation.
+- Database operations.
+- Eligibility rules.
+- Application state.
+- Simulated submission.
+- Status retrieval.
 
-This follows the database design: evidence metadata belongs in the
-relational database, while actual file bytes stay outside the case row.
+## Why it fits
 
-## Hackathon rule
+This is one of the strongest choices for the hackathon.
 
-Keep the supported evidence types narrow:
+The architecture requires:
 
--   images first
--   small files only
+> **Frontend → Internal API → Agent/backend logic → Database/AI**
 
-Do not attempt:
+It does not require:
 
--   forensic chain of custody
--   deepfake detection
--   video transcoding
--   virus scanning pipeline
--   evidence authenticity verification
+> Frontend → separate backend service → separate agent service → separate database service
 
-Those are outside the MVP.
+Using Next.js API routes gives the team one codebase and one development server.
 
-------------------------------------------------------------------------
+### Advantages
 
-# 9. Why We Are NOT Using More Technologies
+- No separate backend project.
+- No CORS configuration between frontend and backend.
+- Shared TypeScript types.
+- Simple local development.
+- Easy deployment to Vercel later.
+- Direct access to server-only secrets.
+- Clear frontend/backend separation despite being in one repository.
 
-The stack intentionally avoids:
+## Alternative
 
-  -----------------------------------------------------------------------
-  Technology / Pattern    Decision                Reason
-  ----------------------- ----------------------- -----------------------
-  Express backend         **NO**                  Next.js already
-                                                  provides the required
-                                                  backend/API boundary.
+### Separate Node.js/Express backend
 
-  NestJS                  **NO**                  Too much structure for
-                                                  a five-table MVP.
+This provides more explicit backend separation but introduces:
 
-  React Native            **NO**                  Mobile-friendly web is
-                                                  sufficient.
+- Another project/process.
+- More configuration.
+- CORS concerns.
+- Additional deployment decisions.
+- More files and moving parts.
 
-  Microservices           **NO**                  No independent scaling
-                                                  requirement.
+It is unnecessary for this MVP.
 
-  Redis                   **NO**                  No caching/queue
-                                                  requirement.
+### NestJS
 
-  Kafka/Event streaming   **NO**                  Timeline events can be
-                                                  stored normally.
+Powerful for larger backend applications, but significantly more structure than this five-hour prototype requires.
 
-  BullMQ/background       **NO**                  Background processing
-  workers                                         is not required.
+### Server Actions only
 
-  AI Agents               **NO**                  Bounded AI Assistant
-                                                  operations are
-                                                  sufficient.
+Could reduce API code, but the architecture already defines an internal API boundary and explicit endpoints.
 
-  Vector database         **NO**                  Persistent AI
-                                                  memory/RAG is not
-                                                  required for P0.
+Keeping the three endpoints provides a clearer separation and aligns with `08-API.md`.
 
-  Custom ML model         **NO**                  General AI API is much
-                                                  simpler for language
-                                                  tasks.
+## Setup time
 
-  MongoDB                 **NO**                  Relational case model
-                                                  fits PostgreSQL better.
+**Very low**
 
-  Kubernetes              **NO**                  Completely unnecessary
-                                                  for hackathon scale.
+If the project is already Next.js:
 
-  Separate API gateway    **NO**                  Internal API only.
+> **15–30 minutes for the backend structure**
 
-  Public developer API    **NO**                  Not part of the MVP.
+Most of the actual work will be implementing the agent workflow and tools, not setting up the API framework.
 
-  Full government         **NO**                  Official handoff is
-  integrations                                    sufficient.
+## Cost
 
-  Native mobile app       **NO**                  Explicitly outside MVP.
-  -----------------------------------------------------------------------
+**Free locally.**
 
-------------------------------------------------------------------------
+No separate backend hosting cost is required for the demo.
 
-# 10. Overall Complexity
+## Risks
 
-The selected architecture is intentionally:
+### Risk: API routes become too large
 
-``` text
-                 ┌──────────────────────┐
-                 │      Next.js         │
-                 │                      │
-                 │  React UI            │
-                 │  Tailwind/shadcn     │
-                 │                      │
-                 │  Route Handlers      │
-                 │  Backend/API         │
-                 └──────────┬───────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              │             │             │
-              ▼             ▼             ▼
-        ┌──────────┐  ┌──────────┐  ┌─────────────┐
-        │  Neon    │  │ OpenAI   │  │   Clerk     │
-        │ Postgres │  │   API    │  │    Auth     │
-        └──────────┘  └──────────┘  └─────────────┘
-                            │
-                            ▼
-                     Vercel deployment
+Putting all agent logic into one route can create a difficult-to-maintain file.
+
+**Mitigation:**
+
+Keep the API route thin:
+
+```text
+/api/chat
+    ↓
+agent service
+    ↓
+tools
+    ↓
+database / rules
 ```
 
-This is a **modular monolith with managed services**, not a distributed
-system.
+### Risk: Server/client boundary mistakes
 
-That is exactly what the architecture requires.
+AI keys and database access must never be exposed to the browser.
 
-------------------------------------------------------------------------
+**Mitigation:** Keep Claude calls and database access in server-only modules.
 
-# 11. Hackathon Setup Priority
+### Risk: Next.js-specific deployment behavior
 
-Do not configure everything at once.
+Some local code may behave differently when deployed.
 
-Recommended order:
+**Mitigation:** Local demo is the primary target. Only deploy after the complete local flow works.
 
-## Step 1 --- Next.js
+---
 
-Get the application running locally.
+# 4. Database — SQLite + better-sqlite3
 
-``` text
+## Choice
+
+**SQLite using `better-sqlite3`**
+
+SQLite will provide the minimal persistence required by the MVP.
+
+The database needs to support the conceptual entities already defined in `07-DATABASE.md`:
+
+```text
+USER
+  │
+  └── APPLICATION
+          │
+          └── SCHEME
+```
+
+The application must also retain enough state for:
+
+- Draft application.
+- User facts.
+- Selected scheme.
+- Confirmation state.
+- Tracking ID.
+- Simulated status.
+
+## Why it fits
+
+SQLite is particularly well suited to a short local hackathon because it is:
+
+- Local.
+- File-based.
+- Fast.
+- Simple to inspect.
+- Easy to reset.
+- Free.
+- Sufficient for a single-user/demo workload.
+- Does not require a database server.
+
+The setup is essentially:
+
+```text
+Application
+    ↓
+better-sqlite3
+    ↓
+local .db file
+```
+
+No database account or network configuration is required.
+
+## Alternative
+
+### PostgreSQL
+
+A stronger choice for production or a shared deployed application.
+
+However, for this hackathon it introduces:
+
+- Database provisioning.
+- Connection configuration.
+- Environment variables.
+- Remote dependency.
+- Potential network/connectivity issues.
+
+PostgreSQL would become more attractive if the project needed reliable cloud persistence for multiple users.
+
+### Prisma + SQLite
+
+Prisma could provide a typed ORM layer and migrations.
+
+However, if the team already has Prisma knowledge or an existing Prisma setup, keeping it can be reasonable.
+
+For a brand-new minimal implementation, direct `better-sqlite3` access has less abstraction and less setup.
+
+**Decision:** Use `better-sqlite3` directly unless the existing project already has a working ORM/data-access layer that would make switching more expensive than keeping it.
+
+### In-memory storage
+
+This would be even simpler, but it fails an important MVP requirement:
+
+> The citizen must be able to return later and retrieve application status.
+
+In-memory state is also fragile if the server restarts.
+
+Therefore SQLite is preferred.
+
+## Setup time
+
+**Very low**
+
+Approximate:
+
+> **10–20 minutes**
+
+This includes creating the database file, tables, and a small data-access layer.
+
+## Cost
+
+**Free.**
+
+SQLite and `better-sqlite3` are open-source technologies and require no hosted database for the local demo.
+
+## Risks
+
+### Risk: SQLite is not ideal for serverless deployment
+
+A local SQLite file is not a good persistence model for many serverless Vercel deployments because filesystem persistence should not be assumed.
+
+**Mitigation:**
+
+> **Do not make Vercel deployment a prerequisite for the MVP.**
+
+If deployment becomes necessary, migrate the persistence layer to a hosted database rather than trying to force local SQLite into a production-like serverless setup.
+
+### Risk: Concurrent users
+
+SQLite is not the intended solution for a large multi-user production service.
+
+**Mitigation:** The hackathon demo is a small controlled workload.
+
+### Risk: Database file accidentally committed
+
+**Mitigation:** Add the SQLite database file to `.gitignore`.
+
+---
+
+# 5. AI / Agent — Claude API with Tool Use
+
+## Choice
+
+**Claude API with tool use**
+
+Claude powers the Sahayak agent.
+
+The model is responsible for:
+
+- Understanding natural-language citizen messages.
+- Extracting structured facts.
+- Determining the user's intent.
+- Choosing among the available tools.
+- Asking follow-up questions.
+- Generating plain-language explanations.
+- Helping map gathered information into application fields.
+- Handling natural-language status requests.
+
+The backend remains responsible for:
+
+- Tool execution.
+- Eligibility rules.
+- Database state.
+- Validation.
+- Submission confirmation.
+- State transitions.
+
+## Why it fits
+
+Claude's tool-use capability maps directly onto the agent design in `09-AI-DESIGN.md`.
+
+Conceptually:
+
+```text
+Citizen message
+      ↓
+Claude / Sahayak
+      ↓
+Choose tool
+      ↓
+Tool executes
+      ↓
+Tool result
+      ↓
+Claude interprets result
+      ↓
+Next action / response
+```
+
+The five controlled tools are:
+
+```text
+SchemeMatcher
+EligibilityChecker
+FormFiller
+ApplicationSubmitter
+StatusTracker
+```
+
+This makes the agent genuinely agentic without requiring a complex agent framework.
+
+### Important boundary
+
+Claude should **not** directly decide official eligibility.
+
+Instead:
+
+```text
+Claude
+  ↓
+Extract facts
+  ↓
+EligibilityChecker
+  ↓
+Controlled scheme rules
+  ↓
+Result
+  ↓
+Claude explains result
+```
+
+This preserves the architecture decision from `06-ARCHITECTURE-DECISION.md`.
+
+## Alternative
+
+### Gemini API
+
+Gemini is a reasonable alternative and can support structured/tool-based workflows.
+
+It may be preferable if the existing project already has a tested Gemini integration.
+
+However, the proposed stack explicitly selects Claude, so switching providers solely for architectural reasons is unnecessary.
+
+### OpenAI API
+
+Also capable of tool/function calling and structured outputs.
+
+The architecture would remain essentially the same.
+
+### Local open-source model
+
+This could reduce external API dependency but would introduce:
+
+- Model installation.
+- Hardware requirements.
+- Model serving.
+- More setup.
+- Potentially weaker quality under hackathon conditions.
+
+It is not appropriate for the five-hour MVP.
+
+### Custom agent framework
+
+A framework could provide abstractions for state and tool execution, but the MVP only has five tools and one focused workflow.
+
+A lightweight custom agent loop is preferable.
+
+## Setup time
+
+**Low to medium**
+
+Approximate:
+
+> **20–45 minutes**
+
+This includes:
+
+- API key configuration.
+- Model setup.
+- Tool definitions.
+- Agent loop.
+- Structured output validation.
+- Basic error handling.
+
+The actual conversation/tool behavior will take longer to refine than the provider setup.
+
+## Cost
+
+**API usage is usage-based.**
+
+Local application code can be run for free, but Claude API calls may incur provider charges depending on the selected model/account/usage.
+
+For a short hackathon with controlled demo conversations, usage should be kept small.
+
+### Cost-control strategy
+
+- Keep prompts concise.
+- Avoid sending unnecessary conversation history.
+- Store structured facts instead of repeatedly sending redundant text.
+- Use tool calls only when needed.
+- Avoid autonomous loops with no clear stopping condition.
+- Test using a small number of representative scenarios.
+
+## Risks
+
+### Risk: API availability
+
+The demo depends on an external AI service.
+
+**Mitigation:** Test the exact model and tool-use flow early.
+
+### Risk: Invalid tool arguments
+
+LLMs can produce malformed or incomplete tool inputs.
+
+**Mitigation:** Validate every tool input on the backend before execution.
+
+### Risk: Model tries to bypass rules
+
+The model may attempt to reason about eligibility itself.
+
+**Mitigation:** System instructions + tool architecture + backend validation must enforce that eligibility comes from `EligibilityChecker`.
+
+### Risk: Excessive agent loops
+
+An unrestricted agent loop can waste time and API calls.
+
+**Mitigation:** Keep the action set small and impose reasonable iteration limits.
+
+### Risk: Hallucinated government information
+
+**Mitigation:** Sahayak must only discuss the configured scheme and its controlled rules. Unsupported information should result in a clear limitation.
+
+---
+
+# 6. Hosting — Local First
+
+## Choice
+
+**Local execution is the primary deployment target.**
+
+Vercel is optional if the complete local demo is stable early enough.
+
+## Why it fits
+
+The architecture decision explicitly says the MVP should be runnable locally and cloud deployment is optional.
+
+For a time-constrained hackathon, local execution has major advantages:
+
+- No deployment configuration required.
+- No production database migration required.
+- No serverless SQLite problem.
+- Faster debugging.
+- Fewer environment-specific failures.
+- Full control over the demo environment.
+
+The priority should be:
+
+```text
+Reliable local demo
+        ↓
+Complete end-to-end journey
+        ↓
+Polish
+        ↓
+Optional Vercel deployment
+```
+
+## Alternative
+
+### Vercel
+
+Vercel is a natural fit for Next.js and can make the project easier to share.
+
+However, deployment introduces additional concerns:
+
+- Environment variables.
+- AI API configuration.
+- Database persistence.
+- SQLite limitations.
+- Production/serverless behavior.
+- Deployment debugging.
+
+Therefore Vercel should be treated as a bonus, not a dependency.
+
+### Other cloud hosting
+
+Possible, but provides no meaningful advantage for the hackathon MVP.
+
+## Setup time
+
+### Local
+
+**Minimal**
+
+Once dependencies are installed:
+
+> **Near-zero deployment setup**
+
+### Vercel
+
+Potentially:
+
+> **15–45+ minutes**
+
+depending on database and environment configuration.
+
+## Cost
+
+### Local
+
+**Free**, apart from any external AI API usage.
+
+### Vercel
+
+Can potentially be used within available free-tier capabilities, but the exact cost and limits depend on the account, usage, and services selected.
+
+The MVP should not depend on paid cloud infrastructure.
+
+## Risks
+
+### Risk: Demo machine failure
+
+A local-only demo depends on the machine being used for presentation.
+
+**Mitigation:** Test the complete journey beforehand and keep a backup demo environment if practical.
+
+### Risk: Vercel migration becomes a distraction
+
+**Mitigation:** Only attempt deployment after the local journey is complete.
+
+### Risk: SQLite persistence does not transfer cleanly
+
+**Mitigation:** Treat database persistence as an abstraction behind the data-access layer so a hosted database can replace SQLite later if needed.
+
+---
+
+# 7. Stack-Level Architecture
+
+The selected stack maps to the architecture as follows:
+
+```text
+┌─────────────────────────────────────────────┐
+│              Next.js Frontend               │
+│        TypeScript + Tailwind CSS            │
+│                                             │
+│              Citizen Chat UI                │
+└──────────────────────┬──────────────────────┘
+                       │
+                       │ Internal API
+                       ▼
+┌─────────────────────────────────────────────┐
+│          Next.js Backend / API Routes       │
+│                                             │
+│              POST /api/chat                 │
+│              GET  /api/schemes              │
+│              GET  /api/application/:id      │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│               Sahayak Agent                 │
+│                                             │
+│       Claude API + Tool Use                 │
+│                                             │
+│  Understand → Decide → Ask → Act            │
+└───────┬──────────┬──────────┬───────────────┘
+        │          │          │
+        ▼          ▼          ▼
+   Scheme      Eligibility   Form
+   Matcher      Checker     Filler
+        │          │          │
+        └──────────┼──────────┘
+                   │
+             ┌─────┴─────────────┐
+             ▼                   ▼
+     ApplicationSubmitter   StatusTracker
+             │                   │
+             └─────────┬─────────┘
+                       ▼
+              ┌─────────────────┐
+              │ SQLite database │
+              │ better-sqlite3  │
+              └─────────────────┘
+```
+
+---
+
+# 8. Responsibility Boundaries
+
+Keeping responsibilities clear is more important than the choice of individual libraries.
+
+| Responsibility | Owner |
+|---|---|
+| Chat UI | Next.js frontend |
+| User interaction state | Frontend + backend session state |
+| Agent reasoning/orchestration | Sahayak + Claude |
+| Natural-language understanding | Claude |
+| Tool selection | Claude/Sahayak agent |
+| Scheme matching | SchemeMatcher |
+| Eligibility rules | EligibilityChecker |
+| Eligibility decision | EligibilityChecker |
+| Application preparation | FormFiller |
+| Human confirmation | Backend state + citizen |
+| Simulated submission | ApplicationSubmitter |
+| Tracking ID | ApplicationSubmitter/backend |
+| Status retrieval | StatusTracker |
+| Persistence | SQLite |
+| API boundary | Next.js API routes |
+
+## Critical boundary
+
+The frontend must never become the authority for:
+
+- Eligibility.
+- Application state.
+- Submission.
+- Tracking state.
+- Status.
+
+The LLM must never become the authority for:
+
+- Eligibility rules.
+- Application ownership.
+- Submission authorization.
+- Application status.
+
+---
+
+# 9. Hackathon Setup Order
+
+Because the hackathon has limited time, implementation should follow the dependency order rather than setting up every technology first.
+
+## Phase 1 — Run the existing app
+
+```text
 Next.js
-↓
+TypeScript
 Tailwind
-↓
-shadcn/ui
 ```
 
-## Step 2 --- Database
+Confirm the application runs locally.
 
-Get Neon + Prisma working immediately.
+## Phase 2 — Database
 
-Create the five models.
+Set up:
 
-## Step 3 --- Authentication
-
-Get Clerk working enough to distinguish:
-
-``` text
-CITIZEN
-AUTHORITY
+```text
+SQLite
+better-sqlite3
 ```
 
-## Step 4 --- Backend/API
+Create the minimal schema and verify persistence.
 
-Implement the smallest API path:
+## Phase 3 — Backend API
 
-``` text
-Create Case
-↓
-Get Case
-↓
-Update Case
+Implement:
+
+```text
+POST /api/chat
+GET /api/schemes
+GET /api/application/:id
 ```
 
-## Step 5 --- Evidence
+Initially, these can use mocked agent behavior while the boundaries are established.
 
-Add image upload/storage.
-
-## Step 6 --- AI
+## Phase 4 — Sahayak
 
 Add:
 
-``` text
-Analyze Case
-↓
-Generate Complaint
+```text
+Claude API
+      ↓
+Tool-use loop
+      ↓
+Controlled tools
 ```
 
-## Step 7 --- Authority Workflow
+Implement the tools in this order:
 
-Add:
-
-``` text
-Authority Review
-↓
-Status Update
-↓
-Resolution
+```text
+SchemeMatcher
+      ↓
+EligibilityChecker
+      ↓
+FormFiller
+      ↓
+ApplicationSubmitter
+      ↓
+StatusTracker
 ```
 
-## Step 8 --- Deploy
+## Phase 5 — Connect the UI
 
-Push to GitHub and deploy to Vercel.
+Connect the chat interface to `/api/chat`.
 
-## Step 9 --- Polish
+Then demonstrate:
 
-Only after the complete workflow works:
-
--   improve visual design
--   improve loading states
--   improve mobile layout
--   add empty/error states
--   improve demo data
--   tighten privacy indicators
-
-------------------------------------------------------------------------
-
-# 12. Estimated Setup Complexity
-
-  Component                       Setup Difficulty   Approx. Initial Setup
-  ----------------------------- ------------------ -----------------------
-  Next.js + Tailwind + shadcn                  Low               5--15 min
-  Next.js API                                  Low     0--5 min beyond app
-  Neon + Prisma                        Low--Medium              10--20 min
-  Clerk                                        Low               5--15 min
-  OpenAI API                                   Low               5--15 min
-  Vercel                                  Very Low               5--10 min
-  Evidence storage                     Low--Medium               5--15 min
-
-These are approximate engineering estimates, not guaranteed timings.
-
-The critical strategy is to **start implementing the product before
-every optional service is perfect**.
-
-------------------------------------------------------------------------
-
-# 13. Cost Strategy
-
-The hackathon should target **\$0 infrastructure spend where possible**,
-with AI API usage being the main potential variable cost.
-
-  Service                               Hackathon Cost Target
-  ------------------------------------- ---------------------------------------------------------
-  Next.js / React / Tailwind / shadcn   \$0
-  Neon                                  \$0 tier for demo-scale workload
-  Vercel                                \$0 tier for demo-scale workload
-  Clerk                                 \$0 tier if the required usage fits current plan limits
-  Evidence storage                      Use free/available quota; keep files small
-  OpenAI API                            Small pay-as-you-go usage
-
-### Important
-
-Free-tier availability, quotas, and pricing can change. Before the
-hackathon starts, verify the current limits for the accounts actually
-being used.
-
-Do **not** architect the application around a paid service unless the
-team has confirmed access.
-
-------------------------------------------------------------------------
-
-# 14. Real Risks Across the Whole Stack
-
-## Highest Risk --- Time
-
-The biggest risk is not technology failure.
-
-It is spending the four hours configuring infrastructure instead of
-demonstrating CivicProof.
-
-### Response
-
-Build the happy path first:
-
-``` text
-Report
-↓
-Evidence
-↓
-AI
-↓
-Complaint
-↓
-Case ID
-↓
-Authority
-↓
-Resolved
+```text
+Situation
+  ↓
+Questions
+  ↓
+Eligibility
+  ↓
+Application
+  ↓
+Review
+  ↓
+Confirm
+  ↓
+Submit
+  ↓
+Tracking
+  ↓
+Status
 ```
 
-------------------------------------------------------------------------
+## Phase 6 — Polish
 
-## Second Highest Risk --- Privacy
+Only after the full journey works:
 
-CivicProof deals with sensitive reports.
+- Improve visual design.
+- Improve loading/error states.
+- Improve wording.
+- Improve demo transitions.
+- Add optional Vercel deployment.
 
-### Response
+---
 
-During the demo:
+# 10. What Not to Add
 
--   Use fictional/synthetic incident data.
--   Never demonstrate with real victim information.
--   Keep sensitive cases private.
--   Enforce authorization server-side.
--   Never create a public alleged-offender feed.
+The selected stack does **not** justify adding:
 
-------------------------------------------------------------------------
+- Separate frontend and backend repositories.
+- Express/NestJS service.
+- Microservices.
+- Redis.
+- Vector database.
+- RAG pipeline.
+- Complex agent framework.
+- Multiple LLM providers.
+- Multiple agents.
+- Long-term memory system.
+- Hosted database before local MVP works.
+- Kubernetes/container orchestration.
+- Production authentication.
+- Real government API integration.
 
-## Third Highest Risk --- AI Hallucination
+These would increase technical complexity without improving the core hackathon demonstration.
 
-The AI could sound confident while being wrong.
+---
 
-### Response
+# 11. Stack Risk Summary
 
-The application should clearly label:
+| Area | Risk | Severity | Mitigation |
+|---|---|---:|---|
+| Next.js | UI/backend files become too coupled | Medium | Keep API and agent logic in separate modules |
+| TypeScript | Over-engineering types | Low | Type only important state/tool contracts |
+| Tailwind | UI consumes too much time | Medium | Build focused chat UI |
+| API routes | Large `/api/chat` route | Medium | Thin route → agent service → tools |
+| SQLite | Poor fit for serverless persistence | High if deployed | Local-first; migrate DB only if Vercel becomes necessary |
+| Claude API | External dependency | Medium | Test early; keep prompts/tool calls controlled |
+| Tool use | Invalid model arguments | Medium | Strict backend schemas and validation |
+| Agent loop | Too many calls/steps | Medium | Small tool set + bounded loop |
+| Local hosting | Machine dependency | Low | Test demo environment and keep backup |
+| Vercel | Deployment complexity | Medium | Optional only after local success |
 
-> **AI-assisted suggestion**
+---
 
-and keep the user's original description separate.
+# 12. Alternative Stack Comparison
 
-AI must never be the source of truth for:
+| Category | Selected | Main Alternative | Why Selected Wins for Hackathon |
+|---|---|---|---|
+| Frontend | Next.js + TypeScript + Tailwind | React + Vite | One project can contain UI and backend |
+| Backend | Next.js API routes | Express/NestJS | No separate backend setup |
+| Database | SQLite + better-sqlite3 | PostgreSQL | No server/database provisioning |
+| AI | Claude API + tool use | Gemini/OpenAI | Directly supports the proposed tool-using agent design |
+| Agent framework | Lightweight custom loop | Agent framework | Less setup and more control |
+| Hosting | Local | Vercel | Lowest deployment risk |
+| Cloud database | None for MVP | Hosted PostgreSQL | Not required for local demo |
 
--   identity
--   authorization
--   legal guilt
--   official submission
--   authority acknowledgment
--   resolution
+---
 
-------------------------------------------------------------------------
+# 13. Final Stack
 
-## Fourth Highest Risk --- Fake Government Integration
+## FINAL STACK SUMMARY
 
-A polished demo might accidentally imply:
+| Category | Final Choice | Reason |
+|---|---|---|
+| **Frontend** | **Next.js + TypeScript + Tailwind CSS** | Fast, typed, polished UI and same-project backend support |
+| **Backend** | **Next.js API Routes** | Minimal internal API boundary without a second service |
+| **Database** | **SQLite + better-sqlite3** | Fastest reliable local persistence for the demo |
+| **AI / Agent** | **Claude API with tool use** | Supports Sahayak's single-agent, controlled-tool workflow |
+| **Agent Framework** | **Lightweight custom agent loop** | Avoids unnecessary framework complexity |
+| **Hosting** | **Local-first** | Lowest risk; Vercel only after MVP is stable |
 
-> "Complaint successfully submitted to the government."
+## Final architecture
 
-when nothing was actually submitted.
-
-### Response
-
-Use explicit states:
-
-``` text
-Complaint Draft
-      ↓
-Ready for Official Handoff
-      ↓
-Official Channel
+```text
+NEXT.JS APP
+│
+├── Frontend
+│   ├── TypeScript
+│   └── Tailwind CSS
+│
+├── Internal API
+│   ├── POST /api/chat
+│   ├── GET /api/schemes
+│   └── GET /api/application/:id
+│
+├── Sahayak
+│   └── Claude API + tool use
+│       ├── SchemeMatcher
+│       ├── EligibilityChecker
+│       ├── FormFiller
+│       ├── ApplicationSubmitter
+│       └── StatusTracker
+│
+└── Persistence
+    └── SQLite + better-sqlite3
 ```
 
-Only display:
+### Final decision
 
-``` text
-Confirmed Official Submission
-```
+> **Use one Next.js + TypeScript application with Tailwind on the frontend, Next.js API routes on the backend, SQLite via `better-sqlite3` for local persistence, Claude API with a lightweight custom tool-using agent loop for Sahayak, and local hosting as the primary demo environment.**
 
-when genuine confirmation exists.
+This stack is deliberately optimized for **speed, reliability, and the end-to-end hackathon demo**, not production scale.
 
-------------------------------------------------------------------------
-
-## Fifth Highest Risk --- Overengineering
-
-The team may be tempted to add:
-
--   agents
--   maps
--   RAG
--   notifications
--   automatic escalation
--   deepfake detection
--   public reports
--   chat
--   analytics
--   native mobile
-
-### Response
-
-Do not add them during the core build.
-
-The existing architecture and MVP documents have already rejected them
-for this hackathon.
-
-------------------------------------------------------------------------
-
-# 15. Final Stack
-
-## **FINAL STACK**
-
-### Frontend
-
-**Next.js + React + TypeScript + Tailwind CSS + shadcn/ui**
-
-### Backend
-
-**Next.js Route Handlers**
-
-### Database
-
-**Neon PostgreSQL + Prisma**
-
-### AI
-
-**OpenAI API**
-
-### Hosting
-
-**Vercel**
-
-### Supporting Authentication
-
-**Clerk**
-
-### Evidence Storage
-
-**Vercel Blob**
-
-------------------------------------------------------------------------
-
-# Final Principle
-
-The stack is deliberately boring.
-
-That is a feature.
-
-CivicProof does not need the most advanced architecture. It needs the
-**smallest reliable system capable of demonstrating:**
-
-``` text
-REAL INCIDENT
-      ↓
-STRUCTURED REPORT
-      ↓
-EVIDENCE
-      ↓
-AI ASSISTANCE
-      ↓
-SEVERITY + REPORTING DIRECTION
-      ↓
-COMPLAINT
-      ↓
-OFFICIAL HANDOFF
-      ↓
-CASE ID
-      ↓
-TRACKING
-      ↓
-AUTHORITY REVIEW
-      ↓
-STATUS UPDATE
-      ↓
-RESOLUTION
-```
-
-> **Build the product, not the infrastructure.**
+The implementation should proceed only after the selected demonstration scheme and its authoritative eligibility rules are established.

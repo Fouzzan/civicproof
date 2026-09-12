@@ -1,78 +1,48 @@
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 
-import { NAV_ITEMS } from "@/components/layout/nav-items";
+import { Brand } from "@/components/layout/brand";
+import { Container } from "@/components/layout/container";
+import { Button } from "@/components/ui/button";
 
 /**
- * Global application header: CivicProof brand, the citizen/authority navigation
- * skeleton, and the session control.
+ * Global header: brand, the demonstration indicator, and the session control.
+ *
+ * There is no navigation. Sahayak is one conversation on one screen, and a nav
+ * bar would only offer somewhere else to go.
  *
  * Clerk Core 3 removed the <SignedIn>/<SignedOut> control components, so the
- * session is read server-side via auth(). That also keeps the signed-in state
- * off the client: the browser is told what to render, never asked.
+ * session is read server-side. That also keeps signed-in state off the client:
+ * the browser is told what to render, never asked.
  */
 export async function SiteHeader() {
   const { userId } = await auth();
 
   return (
-    <header className="border-b border-border bg-background">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
-          <span className="text-base font-semibold tracking-tight">
-            CivicProof
-          </span>
-        </Link>
+    <header className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+      <Container width="form">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Brand />
 
-        <div className="flex items-center gap-4">
-          <nav aria-label="Main">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              {NAV_ITEMS.map((item) =>
-                item.enabled ? (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ) : (
-                  <li key={item.href}>
-                    <span
-                      aria-disabled="true"
-                      title="Available in a later implementation task"
-                      className="cursor-not-allowed text-muted-foreground/50"
-                    >
-                      {item.label}
-                    </span>
-                  </li>
-                ),
-              )}
-            </ul>
-          </nav>
+          <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full border border-severity-medium/30 bg-severity-medium/10 px-2.5 py-1 text-xs font-semibold text-severity-medium sm:inline-flex">
+              <FlaskConical aria-hidden="true" className="size-3.5" />
+              Demo
+            </span>
 
-          <div className="flex items-center">
             {userId ? (
               <UserButton />
             ) : (
               <SignInButton mode="modal">
-                <button
-                  type="button"
-                  className="rounded-md text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
+                <Button type="button" variant="ghost">
                   Sign in
-                </button>
+                </Button>
               </SignInButton>
             )}
           </div>
         </div>
-      </div>
+      </Container>
     </header>
   );
 }

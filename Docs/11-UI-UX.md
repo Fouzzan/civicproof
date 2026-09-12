@@ -1,1822 +1,1031 @@
-# CivicProof --- UI/UX Design
+# 11 — UI / UX Design
+
+This document defines the minimum user interface and experience required for the MVP described in `01-PROBLEM.md` through `10-TECH-STACK.md`.
+
+The design principle is:
+
+> **Make the citizen's journey feel like one simple conversation, while complex government-service work appears as understandable cards inside that conversation.**
+
+The MVP should avoid making the user navigate between separate pages for eligibility, application forms, submission, and status.
+
+---
+
+# 1. UI Strategy
+
+## Primary Screen
+
+The MVP uses **one primary chat screen**.
+
+Within the conversation, Sahayak can render structured inline cards for:
+
+- Eligibility results.
+- Filled application preview.
+- Application review/confirmation.
+- Simulated submission confirmation.
+- Tracking information.
+- Simulated application status.
+
+This keeps the user's mental model simple:
+
+> **"I tell Sahayak what I need, and Sahayak helps me complete it."**
+
+## Optional Screen
+
+A lightweight **My Applications** list may be added if time permits.
+
+It is not required for the core MVP because status lookup can happen directly inside the chat.
+
+---
+
+# 2. Screen 1 — Sahayak Chat
 
 ## Purpose
 
-This document defines the **minimum screens required by the CivicProof
-MVP**.
-
-The design follows the existing MVP, architecture, database, API, AI,
-and technology decisions. It intentionally avoids adding screens for
-features that are outside the MVP.
-
-The primary design goal is:
-
-> **A citizen should understand what CivicProof does within seconds and
-> be able to move from "something happened" to a structured, actionable
-> case without feeling lost.**
-
-The MVP is not a social network, public incident map, chat application,
-legal-advice product, or autonomous government-submission system.
-
-------------------------------------------------------------------------
-
-# 1. Screen Flow
-
-The MVP uses a small number of screens and reuses case components rather
-than creating separate screens for every small action.
-
-## Overall flow
-
-``` text
-┌────────────────┐
-│  1. HOME /     │
-│  REPORT START  │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 2. CREATE      │
-│    INCIDENT    │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 3. CASE        │
-│    ANALYSIS    │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 4. COMPLAINT   │
-│    REVIEW      │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 5. HANDOFF +   │
-│    CASE ID     │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 6. CASE        │
-│    TRACKING    │
-└────────────────┘
-        │
-        │ authority role
-        ▼
-┌────────────────┐
-│ 7. AUTHORITY   │
-│    CASE REVIEW │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│ 8. RESOLUTION  │
-│    / UPDATED   │
-│    CASE        │
-└────────────────┘
-```
-
-### Important implementation note
-
-Screens 5 and 6 can be implemented as states of the same case page if
-that is faster.
-
-Likewise, screen 8 does not need to be a completely separate route. The
-existing case screen can display the resolution once the authority
-records it.
-
-The screen count describes **user-facing states**, not necessarily eight
-separate code routes.
-
-------------------------------------------------------------------------
-
-# 2. Screen 1 --- Home / Report Start
-
-## Purpose
-
-Immediately communicate the core value of CivicProof and give the
-citizen one obvious next action.
-
-The user should understand:
-
-> **"I can turn a real-world problem into an evidence-backed case, get
-> AI assistance, and track what happens next."**
-
-within a few seconds.
-
-## Which user sees it?
-
--   Citizen
--   Victim/reporting user
--   Any unauthenticated visitor before entering the protected reporting
-    workflow
-
-The authority workflow can have a separate authenticated entry point,
-but it should not complicate the citizen landing experience.
-
-## Core design
-
-The hero section should be extremely simple:
-
-``` text
-CivicProof
-
-Turn a real-world problem into an
-actionable, trackable case.
-
-Report what happened.
-Add evidence.
-Get AI-assisted guidance.
-Track the case to resolution.
-
-[ Report an Incident ]
-
-Your sensitive reports are private.
-```
-
-### Supporting visual
-
-A simple horizontal visual can reinforce:
-
-``` text
-Incident → Evidence → AI Assistance → Case → Resolution
-```
-
-Do not put a large dashboard, statistics wall, public map, or feature
-carousel here.
-
-## Components
-
--   CivicProof logo/name
--   Short value proposition
--   One primary CTA: **Report an Incident**
--   Small secondary action: **Track a Case** if needed
--   Privacy/sensitive-report reassurance
--   Minimal explanation of the workflow
--   Optional small sign-in/account action
-
-## Inputs
-
-No incident input yet.
-
-Optional:
-
--   Authentication/sign-in action
--   Case tracking action
-
-## Outputs
-
-The user understands:
-
--   What CivicProof does
--   That evidence can be attached
--   That AI assists rather than makes legal decisions
--   That cases can be tracked
--   That sensitive reports are private
-
-## Actions
-
--   **Report an Incident**
--   Sign in
--   Continue to case tracking if already authenticated
-
-## Loading state
-
-Normally none.
-
-If authentication state is being restored:
-
-``` text
-Loading your CivicProof session…
-```
-
-Use a small page-level skeleton rather than a full-screen spinner.
-
-## Error state
-
-If authentication/session loading fails:
-
-``` text
-We couldn't restore your session.
-
-[ Try Again ]
-```
-
-The report CTA should remain available if the application can safely
-proceed to the authentication step.
-
-## Empty state
-
-Not applicable.
-
-The landing page is intentionally not data-driven.
-
-------------------------------------------------------------------------
-
-# 3. Screen 2 --- Create Incident
-
-## Purpose
-
-Collect the minimum information required to turn an unstructured
-real-world problem into a CivicProof case.
-
-The form should feel more like:
-
-> **"Tell us what happened."**
-
-than a government form.
-
-## Which user sees it?
-
-**Citizen/reporting user**
-
-## Components
-
-### Header
-
-``` text
-Report an Incident
-Step 1 of 3
-```
-
-### Incident type selector
-
-Use clear cards/chips rather than a large dropdown.
-
-Suggested MVP categories:
-
--   Civic Problem
--   Public Service Problem
--   Safety / Harassment
-
-Sensitive categories should visibly indicate:
-
-``` text
-Private
-```
-
-### Description
-
-Large textarea:
-
-``` text
-What happened?
-Describe the problem in your own words.
-```
-
-Do not force users to understand legal terminology.
-
-### Date/time
-
-Optional.
-
-### Location
-
-Optional.
-
-Use a simple text/location input for the MVP.
-
-Do not make a map a required dependency.
-
-### Evidence uploader
-
-``` text
-Add evidence (optional)
-
-[ Upload Photo / File ]
-
-Evidence helps explain what happened.
-```
-
-Show uploaded files as small cards.
-
-### Sensitive-case indicator
-
-When a sensitive incident is selected:
-
-``` text
-🔒 This report will be handled privately.
-Only you and authorized case handlers can access it.
-```
-
-### Immediate safety guidance
-
-For safety/harassment categories, show the safety action before normal
-reporting actions where appropriate:
-
-``` text
-Are you in immediate danger?
-
-[ Get Emergency / Safety Help ]
-```
-
-The user should never have to wait for AI analysis to see this.
-
-### Primary CTA
-
-``` text
-Continue to AI Analysis →
-```
-
-## Inputs
-
--   Incident type
--   Description
--   Optional date/time
--   Optional location
--   Optional evidence files
--   Sensitive/private classification
-
-## Outputs
-
-After submission:
-
--   New case created
--   Case ID generated by backend
--   Case creation timeline event
--   User proceeds to AI analysis
-
-## Actions
-
--   Select incident type
--   Enter description
--   Add date/time
--   Add location
--   Upload evidence
--   Remove an uploaded file
--   Trigger immediate safety guidance where relevant
--   Continue
-
-## Loading state
-
-When creating the case/uploading evidence:
-
-``` text
-Creating your case…
-```
-
-For AI preparation:
-
-``` text
-Preparing your report…
-```
-
-Disable duplicate submission.
-
-Use progress indicators for upload where useful.
-
-## Error state
-
-Examples:
-
-``` text
-We couldn't create the case.
-Your information has not been lost.
-
-[ Try Again ]
-```
-
-For an upload failure:
-
-``` text
-This file couldn't be uploaded.
-You can try again or continue without it.
-```
-
-For invalid form data:
-
-``` text
-Please describe what happened before continuing.
-```
-
-Do not silently discard entered information.
-
-## Empty state
-
-The form starts empty by design.
-
-Helpful placeholder text should explain what belongs in each field.
-
-The user should not be confronted with an empty dashboard or irrelevant
-content.
-
-------------------------------------------------------------------------
-
-# 4. Screen 3 --- AI Case Analysis
-
-## Purpose
-
-Show the product's central intelligence:
-
-> **CivicProof turns the citizen's raw report into something structured
-> and actionable.**
-
-This is the screen where the AI value should become obvious.
-
-## Which user sees it?
-
--   Citizen
--   Authorized authority reviewing a case
-
-The initial version is primarily for the citizen immediately after
-report creation.
-
-## Components
-
-### Case summary
-
-``` text
-AI-Assisted Case Summary
-
-A large pothole has been reported near a bus stop
-and may create a road-safety hazard.
-```
-
-Clearly label the result:
-
-``` text
-AI-assisted
-Based only on the information you provided.
-```
-
-### Structured details
-
-Show extracted facts as simple fields:
-
-``` text
-Incident       Pothole
-Location       Main bus stop
-Reported impact Difficulty for road users
-```
-
-### Severity suggestion
-
-A prominent but non-authoritative card:
-
-``` text
-Suggested Severity
-MEDIUM
-
-Why:
-The report describes a public road hazard,
-but does not establish an immediate emergency.
-
-AI-assisted assessment — not an official risk determination.
-```
-
-### Reporting direction
-
-``` text
-Suggested Reporting Direction
-
-Local civic authority
-
-Reporting channel:
-Official local civic complaint channel
-```
-
-This should be visibly presented as a recommendation.
-
-### Potentially Relevant Regulatory Context
-
-Only show this if the P1 capability is actually implemented.
-
-For the four-hour MVP it can be omitted.
-
-### Primary CTA
-
-``` text
-Generate Formal Complaint →
-```
-
-### Secondary action
-
-``` text
-Edit Report
-```
-
-## Inputs
-
-Normally none beyond the case already created.
-
-Optional:
-
--   User-triggered "Analyze again" if supported
-
-## Outputs
-
--   AI-generated summary
--   Structured case data
--   Severity suggestion
--   Severity reason
--   Reporting-direction recommendation
--   Reporting-channel information where configured
-
-## Actions
-
--   Review AI result
--   Return/edit the report
--   Generate complaint
-
-The user does **not** approve an AI legal decision because no such
-decision exists.
-
-## Loading state
-
-This screen needs an important loading experience.
-
-``` text
-Analyzing your report…
-
-✓ Reading incident details
-✓ Structuring the report
-○ Assessing severity
-○ Preparing reporting guidance
-```
-
-Do not claim individual AI steps completed if the application is
-actually making one request.
-
-A safer presentation is:
-
-``` text
-Analyzing your report…
-
-CivicProof is preparing an AI-assisted summary,
-severity suggestion, and reporting direction.
-```
-
-## Error state
-
-``` text
-AI analysis is temporarily unavailable.
-
-Your case is safe and has not been lost.
-You can continue without AI assistance.
-
-[ Try Again ]
-[ Continue to Case ]
-```
-
-Never show a fake AI result.
-
-## Empty state
-
-If analysis has not yet been requested:
-
-``` text
-Your case is ready for AI assistance.
-
-CivicProof can summarize the report,
-suggest severity, and help identify where to report it.
-
-[ Analyze My Report ]
-```
-
-------------------------------------------------------------------------
-
-# 5. Screen 4 --- Complaint Review
-
-## Purpose
-
-Turn the structured case into a usable formal complaint while keeping
-the human in control.
-
-The central principle is:
-
-> **AI drafts. The citizen decides.**
-
-## Which user sees it?
-
--   Citizen/reporting user
--   Authorized authority where appropriate
-
-## Components
-
-### Header
-
-``` text
-Formal Complaint
-Review before handoff
-```
-
-### Editable complaint editor
-
-Large text area/editor containing the generated draft.
-
-Example structure:
-
-``` text
-To the concerned authority,
-
-I am writing to report…
-
-[complaint text]
-```
-
-### AI notice
-
-``` text
-AI-assisted draft
-Please review the facts before using this complaint.
-```
-
-### Case facts sidebar/card
-
-Show the source facts that generated the draft:
-
--   Incident type
--   Date/time
--   Location
--   Evidence attached
--   Suggested reporting direction
-
-This helps the user verify that the complaint has not changed the
-underlying facts.
-
-### Primary CTA
-
-``` text
-Save & Continue to Official Handoff →
-```
-
-### Secondary CTA
-
-``` text
-Back to Analysis
-```
-
-## Inputs
-
--   Complaint draft
--   User edits
-
-## Outputs
-
--   Final user-reviewed complaint draft
--   Saved `complaintDraft`
--   Timeline event indicating complaint preparation
-
-## Actions
-
--   Edit complaint
--   Save changes
--   Continue to official handoff
--   Return to analysis
-
-## Loading state
-
-When generating the draft:
-
-``` text
-Preparing your complaint…
-```
-
-When saving:
-
-``` text
-Saving complaint…
-```
-
-## Error state
-
-AI generation failure:
-
-``` text
-We couldn't generate the complaint right now.
-
-Your case is still available.
-You can write or edit the complaint manually.
-
-[ Try Again ]
-[ Continue Manually ]
-```
-
-Save failure:
-
-``` text
-We couldn't save your changes.
-
-[ Try Again ]
-```
-
-Do not lose the editor contents.
-
-## Empty state
-
-If no complaint exists:
-
-``` text
-No complaint draft has been created yet.
-
-[ Generate Complaint ]
-```
-
-If the AI cannot generate one because the case lacks sufficient
-information:
-
-``` text
-There isn't enough information to generate a reliable draft.
-
-Add more details to your incident report and try again.
-```
-
-------------------------------------------------------------------------
-
-# 6. Screen 5 --- Official Handoff + Case ID
-
-## Purpose
-
-Move the citizen from the prepared complaint toward the appropriate
-official reporting channel while being completely truthful about what
-CivicProof has and has not submitted.
-
-This screen is critical for trust.
-
-## Which user sees it?
-
-**Citizen/reporting user**
-
-## Components
-
-### Handoff status
-
-Before action:
-
-``` text
-Ready for Official Handoff
-
-Your complaint is ready to continue through
-the appropriate official channel.
-```
-
-### Reporting direction
-
-``` text
-Recommended reporting direction
-Local civic authority
-
-Official channel
-[ Open Official Channel ]
-```
-
-The actual URL/channel must come from trusted configured application
-data.
-
-### Truthfulness notice
-
-``` text
-Important:
-CivicProof does not claim that your complaint has been
-officially submitted unless the official system confirms it.
-```
-
-### Primary CTA
-
-Depending on the real integration:
-
-``` text
-Continue to Official Channel →
-```
-
-or, if the MVP only records handoff:
-
-``` text
-Mark as Ready for Handoff
-```
-
-Do not imply that clicking a button submitted the complaint to a
-government system.
-
-### Case reference
-
-After the handoff state is recorded:
-
-``` text
-Your CivicProof Case
-
-CP-2026-000184
-```
-
-### Next action
-
-``` text
-[ View Case Status ]
-```
-
-## Inputs
-
--   User confirmation to proceed
--   Handoff action
-
-No arbitrary authority URLs should be accepted from the client.
-
-## Outputs
-
--   Handoff state
--   Case ID
--   Timeline event
--   Link/instructions for the official channel
-
-## Actions
-
--   Review complaint
--   Continue to official channel
--   Record supported handoff state
--   Copy case ID
--   View case
-
-## Loading state
-
-``` text
-Preparing official handoff…
-```
-
-After action:
-
-``` text
-Updating your case…
-```
-
-## Error state
-
-``` text
-We couldn't update the handoff status.
-
-Your case and complaint are still saved.
-
-[ Try Again ]
-```
-
-If the configured channel is unavailable:
-
-``` text
-The official reporting channel is temporarily unavailable.
-
-Your CivicProof case is safe.
-Please try the official channel again later.
-```
-
-## Empty state
-
-If no complaint exists:
-
-``` text
-Your complaint is not ready yet.
-
-[ Review Complaint ]
-```
-
-If reporting direction is unknown:
-
-``` text
-We couldn't confidently identify a reporting direction.
-
-Please review the available reporting options manually.
-```
-
-Never invent a government department or contact number.
-
-------------------------------------------------------------------------
-
-# 7. Screen 6 --- Case Tracking
-
-## Purpose
-
-Give the citizen a persistent place to see what has actually happened to
-their case.
-
-This proves CivicProof is more than a complaint-writing tool.
-
-## Which user sees it?
-
-**Citizen/reporting user**
-
-## Components
-
-### Case header
-
-``` text
-Case CP-2026-000184
-Pothole
-
+Provide the complete citizen journey from:
+
+```text
+Situation
+   ↓
+Questions
+   ↓
+Eligibility
+   ↓
+Application
+   ↓
+Review
+   ↓
+Confirmation
+   ↓
+Simulated submission
+   ↓
+Tracking
+   ↓
 Status
-In Review
 ```
 
-### Status timeline
+without requiring the citizen to navigate separate screens.
 
-Example:
+## User
 
-``` text
-✓ Report created
-  12 Sep, 5:30 PM
+Primary user:
 
-✓ AI analysis completed
-  12 Sep, 5:31 PM
+> A citizen seeking help with a supported government welfare scheme, especially someone who may understand their situation but find government forms and procedures difficult.
 
-✓ Complaint prepared
-  12 Sep, 5:32 PM
+## Main Components
 
-✓ Official handoff
-  12 Sep, 5:33 PM
+### 1. Header
 
-● Authority review
-  In progress
+Contains:
+
+- Sahayak name/logo.
+- Short value statement such as:
+  > **Your guide to government support**
+- Small simulation indicator where appropriate.
+
+The header should immediately communicate what the product does without requiring the user to read instructions.
+
+### 2. Welcome / Empty State
+
+Shown before the first message.
+
+Suggested content:
+
+> **Tell me what you need help with.**
+>
+> You don't need to know the scheme name or fill out a form first. Just describe your situation in your own words.
+
+Example prompts:
+
+- "I want to know if I qualify for support."
+- "I'm 62 and have a low income."
+- "Help me apply for government assistance."
+
+A prominent input box appears below.
+
+### 3. Conversation Area
+
+Contains:
+
+- Citizen messages.
+- Sahayak responses.
+- Loading/typing indicator.
+- Inline action cards.
+
+The conversation should visually distinguish:
+
+```text
+Citizen
+   ↓
+Sahayak
+   ↓
+Structured result/card
+   ↓
+Citizen action
 ```
 
-Only actual recorded events should be shown as completed.
+### 4. Message Composer
 
-### Incident summary
+Contains:
 
--   Incident type
--   Description
--   Location
--   Date/time
--   Sensitive/private indicator
+- Text input.
+- Send button.
+- Disabled/loading state while the current request is processing.
 
-### Evidence
+The MVP does not require voice input or other input modes.
 
-Show attached evidence with permission-aware access.
+### 5. Inline Cards
 
-### AI assistance
+Cards are rendered as part of the conversation rather than separate pages.
 
-Show:
+Required card types:
 
--   Summary
--   Severity suggestion
--   Reporting direction
+- Eligibility card.
+- Application preview card.
+- Confirmation card.
+- Submission/tracking card.
+- Status card.
+- Error/information card where needed.
 
-Clearly labeled as AI-assisted.
+---
 
-### Complaint
-
-Show the current complaint draft/status.
-
-### Resolution
-
-If resolved:
-
-``` text
-Resolution
-
-The reported issue was reviewed and corrective
-action was recorded.
-
-Resolved on: 14 Sep 2026
-```
-
-### Primary navigation
-
-``` text
-[ Back to My Cases ]
-```
-
-## Inputs
-
-No required form inputs.
-
-Optional:
-
--   Case ID if the user uses a case lookup flow
--   Navigation/filtering if multiple own cases are supported
-
-## Outputs
-
--   Current case status
--   Timeline
--   Evidence metadata/access
--   AI analysis
--   Complaint/handoff state
--   Resolution information
-
-## Actions
-
--   View case
--   View evidence
--   Review complaint
--   Copy case ID
--   Return to cases
--   Refresh status if needed
-
-No public sharing of sensitive cases.
-
-## Loading state
-
-Use a case-detail skeleton:
-
-``` text
-Loading case…
-```
-
-Skeleton sections:
-
--   Status
--   Timeline
--   Details
--   Evidence
--   AI analysis
-
-## Error state
-
-``` text
-We couldn't load this case.
-
-It may be temporarily unavailable.
-
-[ Try Again ]
-```
-
-For unauthorized access:
-
-``` text
-This case is not available to your account.
-```
-
-Do not leak whether a sensitive case exists if the authorization model
-calls for a generic not-found response.
-
-## Empty state
-
-For a user with no cases:
-
-``` text
-You don't have any CivicProof cases yet.
-
-[ Report an Incident ]
-```
-
-For a case with no evidence:
-
-``` text
-No evidence has been attached to this case.
-```
-
-For a case with no AI analysis:
-
-``` text
-AI assistance hasn't been run for this case yet.
-
-[ Analyze Case ]
-```
-
-------------------------------------------------------------------------
-
-# 8. Screen 7 --- Authority Case Review
+# 3. Chat — Initial State
 
 ## Purpose
 
-Provide the receiving authority user with a concise, actionable view of
-a case.
+Make the product's value obvious within seconds.
 
-The authority should not have to read a long citizen submission to
-understand the important information.
+## Visual hierarchy
 
-## Which user sees it?
-
-**AUTHORITY user**
-
-## Components
-
-### Authority header
-
-``` text
-Case Review
-CP-2026-000184
+```text
+┌─────────────────────────────────────────────┐
+│  SAHAYAK                  Government help   │
+├─────────────────────────────────────────────┤
+│                                             │
+│       Tell me what you need help with.      │
+│                                             │
+│   Describe your situation in your own      │
+│   words. You don't need to know the         │
+│   scheme name or fill a form first.         │
+│                                             │
+│   ┌─────────────────────────────────────┐   │
+│   │ "I want to know if I qualify..."    │   │
+│   └─────────────────────────────────────┘   │
+│                                             │
+│   Example:                                 │
+│   • "I'm 62 and need financial support."  │
+│   • "Can I apply for this benefit?"       │
+│                                             │
+├─────────────────────────────────────────────┤
+│  Type your message...                 Send │
+└─────────────────────────────────────────────┘
 ```
 
-### Priority/AI severity
+The exact visual styling is an implementation decision, but the hierarchy should remain simple.
 
-``` text
-AI-Suggested Severity
-MEDIUM
-```
+---
 
-Clearly distinguish this from an official priority classification.
-
-### Case summary
-
-``` text
-AI-Assisted Summary
-
-A large pothole has been reported near...
-```
-
-### Original report
-
-Keep the citizen's original description visible.
-
-This is important because AI output is interpretation, not the source of
-truth.
-
-### Incident facts
-
--   Incident type
--   Date/time
--   Location
--   Reporter-provided details
-
-### Evidence
-
-Permission-controlled evidence viewer.
-
-### Complaint / handoff
-
-Show:
-
--   Complaint
--   Handoff state
--   Official channel information
-
-### Timeline
-
-Show the complete case history.
-
-### Authority actions
-
-``` text
-Update Status
-```
-
-Status options should remain small and meaningful, for example:
-
-``` text
-IN_REVIEW
-IN_PROGRESS
-RESOLVED
-```
-
-### Progress input
-
-``` text
-Add progress information
-[ text area ]
-
-[ Update Case ]
-```
-
-### Resolution action
-
-When appropriate:
-
-``` text
-Record Resolution
-```
-
-This can use an inline form/modal rather than another dedicated screen.
-
-## Inputs
-
--   Status
--   Progress description
--   Resolution information
-
-## Outputs
-
--   Updated case status
--   New timeline events
--   Resolution state when recorded
-
-## Actions
-
--   Review case
--   View evidence
--   Update status
--   Add progress
--   Record resolution
-
-Authority users cannot:
-
--   change citizen roles
--   access unrelated cases
--   expose sensitive cases publicly
--   claim an external submission occurred when it did not
-
-## Loading state
-
-When loading:
-
-``` text
-Loading case review…
-```
-
-When updating:
-
-``` text
-Updating case…
-```
-
-Disable the action button while the request is in progress.
-
-## Error state
-
-``` text
-We couldn't update this case.
-
-No change has been recorded.
-
-[ Try Again ]
-```
-
-Unauthorized action:
-
-``` text
-You are not authorized to perform this action.
-```
-
-## Empty state
-
-If there are no cases assigned/authorized to the authority:
-
-``` text
-No cases are currently assigned to you.
-```
-
-Do not add a complex authority case-management dashboard just to avoid
-an empty state.
-
-------------------------------------------------------------------------
-
-# 9. Screen 8 --- Resolution / Updated Case
+# 4. Chat — Eligibility Interaction
 
 ## Purpose
 
-Close the product loop by showing the citizen that a real recorded
-authority update changed the case state.
-
-This is not necessarily a separate route. It is the **resolved state of
-the Case Tracking screen**.
-
-## Which user sees it?
-
--   Citizen
--   Authorized authority
-
-The citizen sees the result; the authority creates it.
+Collect only the information needed to evaluate the supported scheme.
 
 ## Components
 
-### Resolved status
+- Sahayak message.
+- User response.
+- Optional compact "What I know" fact summary.
+- Eligibility card when evaluation is complete.
 
-``` text
-✓ Resolved
+### Example
 
-Case CP-2026-000184
+```text
+Sahayak
+
+I can help you check that.
+
+I already know:
+✓ You are 62
+✓ Your income is in the low-income range
+
+I just need to know whether you meet the residency requirement.
+
+[ User responds ]
+
+Sahayak
+
+Thanks. Based on the information you've provided,
+you appear eligible for this scheme.
 ```
 
-### Resolution information
+The interface should avoid showing a long list of raw government fields.
 
-``` text
-Resolution
+---
 
-[Recorded authority resolution]
+# 5. Eligibility Result Card
+
+## Purpose
+
+Make the eligibility decision understandable and trustworthy.
+
+## Components
+
+- Scheme name.
+- Result.
+- Short explanation.
+- Criteria summary.
+- Next action.
+
+### Eligible example
+
+```text
+┌──────────────────────────────────────┐
+│  Eligibility                         │
+│                                      │
+│  ✓ You appear eligible               │
+│                                      │
+│  You meet the required conditions    │
+│  based on the information you gave.  │
+│                                      │
+│  ✓ Age requirement                   │
+│  ✓ Income requirement                │
+│  ✓ Residency requirement             │
+│                                      │
+│  [ Prepare my application ]          │
+└──────────────────────────────────────┘
 ```
 
-### Resolution date
+The result should use plain language such as:
 
-``` text
-Resolved on
-14 Sep 2026
+> **"You appear eligible"**
+
+rather than implying that Sahayak has made an official government decision.
+
+## Ineligible example
+
+```text
+┌──────────────────────────────────────┐
+│  Eligibility                         │
+│                                      │
+│  You do not appear eligible          │
+│                                      │
+│  The current scheme rules require    │
+│  [criterion], which your information │
+│  does not meet.                      │
+│                                      │
+│  [Explain what would need to change] │
+└──────────────────────────────────────┘
 ```
 
-### Timeline
+Only conditions supported by the configured scheme rules should be displayed.
 
-The timeline gains:
+## More information needed
 
-``` text
-✓ Resolution recorded
+```text
+┌──────────────────────────────────────┐
+│  Eligibility                         │
+│                                      │
+│  More information needed              │
+│                                      │
+│  I need one more detail before I     │
+│  can check the scheme requirements.  │
+│                                      │
+│  [ Continue ]                         │
+└──────────────────────────────────────┘
 ```
 
-### Original case information
+---
 
-Remain available for context.
+# 6. Application Preview Card
 
-## Inputs
+## Purpose
 
-### Citizen
+Show the citizen what Sahayak has prepared before any submission occurs.
 
-None.
+This is one of the most important trust-building components.
 
-### Authority
+## Components
 
--   Resolution text
--   Resolution action
+- Scheme name.
+- Application fields.
+- Values gathered from the conversation.
+- Edit controls.
+- Confirmation action.
+- Clear "Not submitted yet" indicator.
 
-## Outputs
+### Example
 
--   `Case.status = RESOLVED`
--   `resolutionText`
--   `resolvedAt`
--   `RESOLUTION_RECORDED` timeline event
-
-## Actions
-
-### Citizen
-
--   View resolution
--   View timeline
--   Return to cases
--   Start a new report
-
-### Authority
-
--   Record resolution
--   Return to case
-
-## Loading state
-
-Citizen:
-
-``` text
-Loading latest case status…
+```text
+┌────────────────────────────────────────┐
+│  Your application                      │
+│  Demo Welfare Support                  │
+│                                        │
+│  Age              62             Edit  │
+│  Income           Low            Edit  │
+│  Residency        Qualified      Edit  │
+│                                        │
+│  ✓ Ready for your review               │
+│                                        │
+│  NOT SUBMITTED                         │
+│                                        │
+│  [ Confirm application ]               │
+└────────────────────────────────────────┘
 ```
 
-Authority:
+## Critical UX rule
 
-``` text
-Recording resolution…
+The user must be able to review and correct information before confirmation.
+
+The card should make the distinction obvious:
+
+> **Prepared ≠ submitted**
+
+---
+
+# 7. Application Review / Confirmation
+
+## Purpose
+
+Create an explicit human-approval boundary.
+
+The user should understand that the next action will perform a **simulated submission**.
+
+## Components
+
+- Application summary.
+- Review/correction controls.
+- Simulation disclosure.
+- Explicit confirmation button.
+- Option to continue editing.
+
+### Example
+
+```text
+┌────────────────────────────────────────┐
+│  Ready to submit?                      │
+│                                        │
+│  Please check your information above.  │
+│                                        │
+│  This will submit the application      │
+│  to the CivicProof demo system only.   │
+│  It will NOT be sent to a real         │
+│  government department.                │
+│                                        │
+│  [ Confirm & submit demo application ] │
+│  [ Keep editing ]                      │
+└────────────────────────────────────────┘
 ```
 
-## Error state
+The confirmation button should be explicit rather than ambiguous labels such as "Continue."
 
-Authority:
+---
 
-``` text
-We couldn't record the resolution.
+# 8. Submission / Tracking Card
 
-The case has not been marked as resolved.
+## Purpose
 
-[ Try Again ]
+Confirm that the simulated application was recorded and provide a tracking reference.
+
+## Components
+
+- Success indicator.
+- Tracking ID.
+- Simulated status.
+- Clear simulation disclosure.
+- Optional action to check status.
+
+### Example
+
+```text
+┌────────────────────────────────────────┐
+│  ✓ Application recorded                │
+│                                        │
+│  Tracking ID                           │
+│  DEMO-123456                           │
+│                                        │
+│  Status: Simulated — Received          │
+│                                        │
+│  This is a hackathon simulation.       │
+│  No real government application was    │
+│  submitted.                            │
+│                                        │
+│  [ Check status ]                      │
+└────────────────────────────────────────┘
 ```
 
-Citizen:
+The tracking ID should be visually prominent and easy to copy/read.
 
-``` text
-We couldn't load the latest case status.
+---
 
-[ Try Again ]
+# 9. Status Card
+
+## Purpose
+
+Let the citizen understand what happened to their simulated application without leaving the conversation.
+
+## Components
+
+- Tracking ID.
+- Scheme.
+- Current simulated status.
+- Submission date/time if available.
+- Simulation indicator.
+- Optional next-status explanation.
+
+### Example
+
+```text
+┌────────────────────────────────────────┐
+│  Application status                    │
+│                                        │
+│  DEMO-123456                           │
+│                                        │
+│  ● Under review                        │
+│                                        │
+│  Your application is currently shown   │
+│  as under review in the demo system.  │
+│                                        │
+│  Simulated status                      │
+└────────────────────────────────────────┘
 ```
 
-## Empty state
+The card should never make a simulated status look like a real government response.
 
-If the case is not resolved:
+---
 
-``` text
-No resolution has been recorded yet.
+# 10. My Applications — Optional Screen
 
-Current status: In Progress
+## Priority
+
+**Optional / only if time allows.**
+
+This screen is not necessary for the primary MVP because the user can ask:
+
+> "What's my status?"
+
+inside the chat.
+
+## Purpose
+
+Provide a lightweight overview of the citizen's simulated applications.
+
+## User
+
+Primary citizen user.
+
+## Components
+
+- Page title: **My Applications**
+- Small list of submitted applications.
+- Scheme name.
+- Tracking ID.
+- Current simulated status.
+- Submitted date.
+- Open/view status action.
+- Link/button back to Sahayak.
+
+### Example
+
+```text
+┌─────────────────────────────────────────┐
+│  My Applications                        │
+│                                         │
+│  Demo Welfare Support                   │
+│  DEMO-123456                            │
+│  ● Under review                         │
+│  Submitted today                        │
+│                                         │
+│  [ View in Sahayak ]                    │
+│                                         │
+└─────────────────────────────────────────┘
 ```
 
-This is preferable to pretending a resolution exists.
+## Why it is optional
 
-------------------------------------------------------------------------
+The core product promise does not depend on a dashboard.
 
-# 10. Navigation Model
+Adding it before the chat journey is complete risks spending valuable hackathon time on secondary navigation.
 
-The MVP should use **minimal navigation**.
+---
 
-## Citizen navigation
+# 11. Screen Flow
 
-``` text
-CivicProof
-├── Report Incident
-├── My Cases
-└── Account / Sign Out
+The primary MVP should be understood as **one screen with evolving content**, not a collection of separate pages.
+
+```text
+                 ┌─────────────────────┐
+                 │    SAHAYAK CHAT     │
+                 │                     │
+                 │ Describe situation  │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Ask only missing    │
+                 │ questions           │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Eligibility Card    │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Application Card    │
+                 │ Review / Edit       │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Confirmation Card   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Submission Card     │
+                 │ Tracking ID         │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Later in same chat: │
+                 │ "What's my status?"│
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │ Status Card         │
+                 └─────────────────────┘
+
+
+        Optional, only if time allows
+
+                 ┌─────────────────────┐
+                 │  My Applications    │
+                 │  lightweight list   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                       Sahayak Chat
 ```
 
-The primary action should always remain easy to find.
+---
 
-## Authority navigation
+# 12. Loading States
 
-``` text
-CivicProof
-├── Assigned Cases
-└── Account / Sign Out
-```
+Loading states should preserve the conversational feel rather than displaying technical progress.
 
-Do not build a large administrative sidebar unless the actual UI needs
-it.
-
-------------------------------------------------------------------------
-
-# 11. Responsive Design
-
-The citizen experience is explicitly mobile-friendly.
-
-## Mobile-first priority
-
-The most important screens to optimize for mobile are:
-
-1.  Home
-2.  Create Incident
-3.  AI Analysis
-4.  Complaint Review
-5.  Handoff
-6.  Case Tracking
-
-## Mobile layout rules
-
--   Single-column layout
--   Large touch targets
--   Large text input
--   Sticky primary CTA where helpful
--   Evidence upload optimized for phone camera/file picker
--   Avoid wide tables
--   Avoid dense dashboards
--   Keep status/timeline cards vertically stacked
--   Make privacy state visible without overwhelming the screen
-
-## Desktop
-
-Desktop can use:
-
-``` text
-Main content       Supporting information
-────────────       ─────────────────────
-Case/report        AI summary
-                   Severity
-                   Reporting direction
-```
-
-But the mobile layout remains the source of truth for citizen workflow.
-
-------------------------------------------------------------------------
-
-# 12. Sensitive Incident UX
-
-Sensitive cases need a visibly different trust experience without
-creating a separate product.
-
-## At report creation
-
-When the user selects a sensitive category:
-
-``` text
-🔒 Private Report
-
-This case is private by default.
-Only you and authorized case handlers can access it.
-```
-
-## During AI analysis
+## Initial AI response
 
 Show:
 
-``` text
-AI-assisted
-Only the information necessary for this analysis is used.
+```text
+Sahayak is thinking…
 ```
 
-Do not expose sensitive data in public URLs or public case lists.
-
-## During case tracking
-
-Show:
-
-``` text
-🔒 Private Case
-```
-
-Never display:
-
--   alleged-offender public profiles
--   public accusations
--   public case feeds
--   public sensitive evidence
-
-## Immediate danger
-
-The safety action should be available **before** AI analysis.
-
-Example:
-
-``` text
-If you are in immediate danger:
-
-[ Get Emergency Help ]
-
-You do not need to wait for CivicProof analysis.
-```
-
-The product must not make emergency help dependent on an AI request.
-
-------------------------------------------------------------------------
-
-# 13. AI UX Rules
-
-AI should look like an assistant, not an authority.
-
-## Good labels
-
-Use:
-
--   **AI-assisted summary**
--   **Suggested severity**
--   **Suggested reporting direction**
--   **AI-assisted complaint draft**
+or a subtle typing indicator.
 
 Avoid:
 
--   "Legal decision"
--   "Confirmed offence"
--   "Guilty"
--   "Official severity"
--   "Guaranteed authority"
--   "Complaint successfully filed" unless genuinely confirmed
-
-## Visual distinction
-
-AI output should be visually separated from original facts.
-
-For example:
-
-``` text
-YOUR REPORT
-───────────
-"There is a large pothole..."
-
-AI-ASSISTED ANALYSIS
-────────────────────
-"May create a road-safety hazard."
+```text
+Calling Claude API...
+Running SchemeMatcher...
+Executing EligibilityChecker...
 ```
 
-This prevents the interface from accidentally presenting AI
-interpretation as user-provided fact.
+Those are implementation details and should not be exposed to the citizen.
 
-------------------------------------------------------------------------
+## Tool execution
 
-# 14. Loading, Error, and Empty-State Design Principles
+For short tool calls, continue the typing/loading indicator.
 
-These states are part of the product, not afterthoughts.
+For a longer operation:
 
-## Loading
+```text
+Sahayak
 
-Prefer informative messages:
-
-``` text
-Creating your case…
-Analyzing your report…
-Preparing your complaint…
-Updating your case…
+I'm checking the information you provided…
 ```
 
-Avoid unexplained infinite spinners.
+The user should understand what is happening without seeing internal architecture.
 
-## Errors
+## Application preparation
 
-Every error should answer:
+Use:
 
-1.  What happened?
-2.  Is my data safe?
-3.  What can I do next?
-
-Example:
-
-``` text
-AI analysis is unavailable.
-
-Your case is still saved.
-You can try again or continue without AI assistance.
-
-[ Try Again ]
+```text
+Preparing your application…
 ```
 
-## Empty states
+## Submission
 
-Every empty state should provide a useful next action.
+Use:
 
-Bad:
-
-``` text
-No data.
+```text
+Recording your application in the demo system…
 ```
 
-Good:
+The simulation should remain explicit.
 
-``` text
-You don't have any cases yet.
+---
 
-[ Report an Incident ]
+# 13. Error States
+
+Errors should be written in plain language and provide a next step.
+
+## AI / agent unavailable
+
+```text
+I couldn't process that right now.
+
+Please try sending your message again.
 ```
 
-------------------------------------------------------------------------
+Do not expose provider-specific errors.
 
-# 15. Core Value Within Seconds
+## Scheme data unavailable
 
-The first screen should **not** begin with:
+```text
+I can't check this scheme right now.
 
--   Login wall
--   Dashboard
--   Statistics
--   Long explanation
--   Feature list
--   Government terminology
--   Legal disclaimers
-
-Instead, the first viewport should communicate:
-
-``` text
-CivicProof
-
-Turn a real-world problem into
-an actionable, trackable case.
-
-Report what happened.
-Add evidence.
-Get AI-assisted guidance.
-Track it to resolution.
-
-[ Report an Incident ]
+Please try again in a moment.
 ```
 
-Immediately underneath:
+Do not substitute invented scheme information.
 
-``` text
-Incident → Evidence → AI → Case → Resolution
+## Application preparation failure
+
+```text
+I couldn't prepare the application yet.
+
+I haven't submitted anything. Let's check the missing information.
 ```
 
-And a short privacy reassurance:
+## Submission failure
 
-``` text
-Sensitive reports are private.
+```text
+The demo application could not be recorded.
+
+Your application was not submitted.
+Please try again.
 ```
 
-## Why this works
+This distinction is important: never display a success state when persistence failed.
 
-The visitor can answer three questions almost immediately:
+## Status not found
 
-### 1. What is this?
+```text
+I couldn't find a submitted application for that tracking ID.
 
-A system for turning real-world incidents into trackable cases.
-
-### 2. What makes it different?
-
-It combines:
-
-``` text
-Evidence
-+
-AI assistance
-+
-Reporting direction
-+
-Case tracking
+Please check the ID and try again.
 ```
 
-instead of being only a complaint form.
+Never invent a status.
 
-### 3. What should I do?
+---
 
-There is one obvious action:
+# 14. Empty States
 
-``` text
-Report an Incident
+## First conversation
+
+Use the welcoming empty state described earlier.
+
+The empty state should communicate:
+
+1. What Sahayak does.
+2. That the user can speak naturally.
+3. That no form knowledge is required.
+
+## No applications
+
+If the optional My Applications screen is implemented:
+
+```text
+You don't have any submitted demo applications yet.
+
+Start a conversation with Sahayak to find out what support
+may apply to you.
 ```
 
-That gets the user into the actual product instead of making them study
-the interface.
+Include:
 
-------------------------------------------------------------------------
+```text
+[ Talk to Sahayak ]
+```
 
-# 16. Screen Discipline --- What We Are NOT Building
+## No status match
 
-To protect the four-hour scope, the following screens are intentionally
-excluded:
+Treat this as a clear information state rather than a blank screen.
 
-  -----------------------------------------------------------------------
-  Screen                  Decision                Reason
-  ----------------------- ----------------------- -----------------------
-  Public incident feed    **NO**                  Not in MVP; conflicts
-                                                  with sensitive-case
-                                                  privacy.
+```text
+No application was found for that tracking ID.
+```
 
-  Public incident map     **NO**                  Not required.
+---
 
-  Social/community feed   **NO**                  Not part of core
-                                                  journey.
+# 15. Unsupported Request UX
 
-  Chat screen             **NO**                  Real-time chat is
-                                                  outside MVP.
+If the citizen asks for a service outside the supported MVP scheme:
 
-  Notifications center    **NO**                  Notifications are
-                                                  outside MVP.
+```text
+Sahayak
 
-  Legal advice screen     **NO**                  AI must not act as a
-                                                  legal decision engine.
+I can currently help with the supported welfare scheme
+available in this demo.
 
-  Advanced                **NO**                  Evidence
-  evidence-forensics                              attachment/review is
-  screen                                          sufficient.
+I don't want to give you incorrect information about
+services I haven't been configured to support.
+```
 
-  Deepfake detector       **NO**                  Outside CivicProof MVP.
+This should feel helpful rather than like a generic error.
 
-  AI agent control panel  **NO**                  Agents are not
-                                                  required.
+Do not display a fabricated alternative scheme.
 
-  Analytics dashboard     **NO**                  Not needed to prove the
-                                                  product journey.
+---
 
-  Complex authority       **NO**                  Authority management is
-  administration                                  outside MVP.
+# 16. Multiple Scheme UX
 
-  Government integration  **NO**                  Direct integrations are
-  management                                      optional.
+If the implementation supports the broader 1–2 scheme scope and multiple schemes match, present a compact choice inside the conversation.
 
-  Native mobile screens   **NO**                  Mobile-friendly web is
-                                                  the requirement.
+```text
+Sahayak
 
-  Separate                **NO**                  Not necessary for the
-  settings/product tour                           demo.
-  -----------------------------------------------------------------------
+Based on what you've told me, two supported schemes may fit.
 
-------------------------------------------------------------------------
+┌────────────────────────────────┐
+│ Scheme A                       │
+│ Why it may apply               │
+│ [ Choose Scheme A ]            │
+└────────────────────────────────┘
 
-# 17. MVP Screen Checklist
+┌────────────────────────────────┐
+│ Scheme B                       │
+│ Why it may apply               │
+│ [ Choose Scheme B ]            │
+└────────────────────────────────┘
+```
 
-Before calling the UI complete, the following must work:
+The user should choose rather than having the agent silently select between materially different options.
 
-## Citizen
+For the one-scheme hackathon demo, this state may never appear.
 
--   [ ] Home clearly explains CivicProof
--   [ ] Report Incident CTA is obvious
--   [ ] Incident type can be selected
--   [ ] Citizen can describe what happened
--   [ ] Date/time can be supplied
--   [ ] Location can be supplied
--   [ ] Evidence can be attached
--   [ ] Sensitive cases visibly become private
--   [ ] Immediate safety guidance is available for relevant incidents
--   [ ] AI analysis can be requested
--   [ ] AI summary is displayed
--   [ ] Severity suggestion is displayed
--   [ ] Reporting direction is displayed
--   [ ] Complaint can be generated
--   [ ] Complaint can be edited
--   [ ] Official handoff state is shown truthfully
--   [ ] Case ID is displayed
--   [ ] Case timeline is displayed
--   [ ] Authority updates become visible
--   [ ] Resolution becomes visible
+---
 
-## Authority
+# 17. Interaction Rules
 
--   [ ] Authority can authenticate
--   [ ] Authority can access authorized cases
--   [ ] Authority can see original report
--   [ ] Authority can see evidence
--   [ ] Authority can see AI assistance
--   [ ] Authority can see severity
--   [ ] Authority can see timeline
--   [ ] Authority can update status
--   [ ] Authority can add progress
--   [ ] Authority can record resolution
+## Rule 1 — Conversation first
 
-## Safety and trust
+The user should never be forced into a form before Sahayak understands their situation.
 
--   [ ] Sensitive cases are not public
--   [ ] Sensitive evidence is permission-controlled
--   [ ] AI output is clearly labeled
--   [ ] AI cannot change permissions
--   [ ] AI cannot claim official submission
--   [ ] AI cannot mark a case resolved
--   [ ] Failed AI calls do not create fake results
--   [ ] Failed updates do not falsely change case state
--   [ ] Empty/error/loading states exist for core operations
+## Rule 2 — One journey
 
-------------------------------------------------------------------------
+Avoid unnecessary page navigation.
 
-# Final UX Principle
+## Rule 3 — Cards for structure
 
-CivicProof should feel like:
+Use cards when information benefits from structure:
 
-> **"Tell us what happened. We'll help you turn it into a clear case,
-> guide you toward the right reporting path, and let you track what
-> actually happens."**
+- Eligibility.
+- Application.
+- Confirmation.
+- Submission.
+- Status.
 
----not like a complicated government portal.
+## Rule 4 — Chat for explanation
 
-The UI should make the product's strongest differentiator visible
-immediately:
+Use normal chat messages for:
 
-``` text
-REAL-WORLD PROBLEM
+- Clarifying questions.
+- Explanations.
+- Guidance.
+- Context.
+
+## Rule 5 — Explicit actions
+
+Important actions should have clear buttons:
+
+- Prepare application.
+- Edit.
+- Confirm.
+- Submit demo application.
+- Check status.
+
+## Rule 6 — Never hide important state
+
+The user should always be able to tell:
+
+```text
+Eligibility → Prepared → Confirmed → Submitted
+```
+
+## Rule 7 — Simulation is always visible
+
+Submission and status cards should clearly communicate that they are simulated.
+
+## Rule 8 — Avoid technical language
+
+Do not expose:
+
+- Tool names.
+- API calls.
+- Model names.
+- Database operations.
+- Internal state names.
+
+The architecture is for the team; the interface is for the citizen.
+
+---
+
+# 18. Responsive Design
+
+The primary chat experience should work on:
+
+- Desktop.
+- Mobile.
+- Tablet.
+
+The design should be mobile-first because many target users may interact primarily through phones.
+
+## Mobile priorities
+
+- Large readable text.
+- Large touch targets.
+- Simple input area.
+- Cards that fit the screen without horizontal scrolling.
+- Short messages.
+- Clear primary action buttons.
+- Tracking ID easy to copy/read.
+
+Avoid dense dashboards or multi-column layouts.
+
+---
+
+# 19. Accessibility and Trust
+
+The target audience may include elderly or less digitally literate users, so accessibility should influence the visual design even within the hackathon scope.
+
+Prioritize:
+
+- Readable font sizes.
+- Strong text hierarchy.
+- Clear buttons.
+- High enough contrast.
+- Avoid relying only on color to communicate eligibility/status.
+- Clear confirmation language.
+- Simple sentence structure.
+- Visible error messages.
+- No hidden submission behavior.
+
+The user should never need to understand the underlying AI to know what the system is doing.
+
+---
+
+# 20. Making the Value Obvious Within Seconds
+
+The first screen should communicate the product's value before the user has to interact with it.
+
+The hierarchy should be:
+
+```text
+WHO?
+Sahayak — your guide to government support
+
+WHAT?
+Describe your situation in your own words.
+
+WHY IS THIS DIFFERENT?
+You don't need to know the scheme name or fill out
+a government form first.
+
+WHAT HAPPENS NEXT?
+Sahayak checks what may apply → asks only what's needed
+→ prepares the application → lets you review it.
+```
+
+## Ideal first impression
+
+Within approximately **5 seconds**, a user or judge should understand:
+
+> **"I can tell this assistant about my situation, and it will figure out the relevant government support and help me apply without making me fill the form myself."**
+
+That is the core product value.
+
+---
+
+# 21. Why Inline Cards Are the Right MVP Choice
+
+Inline cards provide the structure of a traditional government workflow without forcing the user to navigate a traditional government interface.
+
+Traditional model:
+
+```text
+Scheme page
+   ↓
+Eligibility page
+   ↓
+Application form
+   ↓
+Confirmation page
+   ↓
+Tracking page
+```
+
+Sahayak model:
+
+```text
+                 ONE CONVERSATION
+                       │
+       ┌───────────────┼────────────────┐
+       │               │                │
+       ▼               ▼                ▼
+ Eligibility      Application       Tracking
+    Card              Card             Card
+```
+
+This makes the experience feel continuous.
+
+The citizen does not need to understand the application's internal stages. Sahayak handles the complexity and surfaces only the information/action relevant to the current step.
+
+---
+
+# 22. MVP Screen Priority
+
+| Screen / Component | Priority | Required? |
+|---|---:|---:|
+| Sahayak Chat | P0 | **Yes** |
+| Welcome / empty state | P0 | **Yes** |
+| Chat messages | P0 | **Yes** |
+| Message composer | P0 | **Yes** |
+| Eligibility card | P0 | **Yes** |
+| Application preview card | P0 | **Yes** |
+| Review/edit controls | P0 | **Yes** |
+| Confirmation card | P0 | **Yes** |
+| Submission/tracking card | P0 | **Yes** |
+| Status card | P0 | **Yes** |
+| Loading states | P0 | **Yes** |
+| Error states | P0 | **Yes** |
+| Unsupported request state | P1 | Recommended |
+| Multiple-scheme choice | P1 | Only if multiple schemes are supported |
+| My Applications | P2 | **Only if time allows** |
+| Separate dashboard | — | **No** |
+| Separate eligibility page | — | **No** |
+| Separate application page | — | **No** |
+| Separate submission page | — | **No** |
+| Separate status page | — | **No** |
+
+---
+
+# 23. Final UI / UX Decision
+
+The MVP should be built around **one polished Sahayak chat screen**.
+
+The screen progressively transforms the conversation:
+
+```text
+"What do you need?"
         ↓
-     EVIDENCE
+"Tell me more."
         ↓
-   AI ASSISTANCE
+"Here's what I understand."
         ↓
- CLEAR COMPLAINT
+"You're likely eligible because..."
         ↓
- OFFICIAL HANDOFF
+"Here's your prepared application."
         ↓
-   TRACKABLE CASE
+"Please review and confirm."
         ↓
- AUTHORITY ACTION
+"Your demo application was recorded."
         ↓
-    RESOLUTION
+"Your tracking ID is..."
+        ↓
+"Here's your simulated status."
 ```
 
-**One complete, trustworthy journey beats a large collection of
-unfinished screens.**
+The complexity of government-service interaction stays behind the interface.
+
+The citizen experiences only:
+
+> **Tell me → Ask me → Explain → Prepare → Let me review → Submit → Track**
+
+That is the UI expression of CivicProof/Sahayak's core value.
+
+---
+
+# 24. Implementation Guardrail
+
+Do not build separate pages simply because the backend has separate stages.
+
+The product architecture may contain:
+
+```text
+SchemeMatcher
+EligibilityChecker
+FormFiller
+ApplicationSubmitter
+StatusTracker
+```
+
+but the user interface should primarily present them as one continuous experience.
+
+> **Backend complexity should enable a simple frontend experience, not leak into it.**

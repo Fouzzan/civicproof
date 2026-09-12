@@ -2,7 +2,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 
 import "./globals.css";
@@ -20,12 +19,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CivicProof — turn a real-world problem into a trackable case",
-    template: "%s · CivicProof",
+    default: "Sahayak — your guide to government support",
+    template: "%s · Sahayak",
   },
   description:
-    "CivicProof turns a real-world incident into a structured, evidence-backed, AI-assisted case you can track from report through to resolution.",
-  applicationName: "CivicProof",
+    "Sahayak helps citizens describe their situation in plain language, find out what government support may apply, and prepare an application. Demonstration build with a fictional scheme and simulated submission.",
+  applicationName: "Sahayak",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -43,10 +42,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Skip to main content
           </a>
           <SiteHeader />
+          {/*
+            The footer is rendered by the landing page rather than here: the
+            chat is a fixed-height app screen, and a document footer below it
+            would sit under the composer where nobody will ever see it. The
+            demonstration disclosure is still on every screen — the header
+            carries a Demo chip and the composer restates it.
+          */}
           <main id="main-content" className="flex-1">
             {children}
           </main>
-          <SiteFooter />
         </body>
       </html>
     </ClerkProvider>

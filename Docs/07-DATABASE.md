@@ -1,783 +1,460 @@
-# CivicProof — Database Design
+# 07 — Database Design
 
-## Purpose
+This document defines the minimum persistent data model required by the MVP described in `01-PROBLEM.md` through `06-ARCHITECTURE-DECISION.md`.
 
-This document defines the **minimum persistent data model required by the CivicProof MVP**.
-
-It is derived from `docs/01-PROBLEM.md` through `docs/06-ARCHITECTURE-DECISION.md`.
-
-The goal is to support one complete journey:
-
-```text
-Incident
-  ↓
-Evidence
-  ↓
-AI-assisted analysis
-  ↓
-Complaint / official handoff state
-  ↓
-Case ID + timeline
-  ↓
-Authority review
-  ↓
-Status update
-  ↓
-Resolution
-```
-
-Only data required to support that MVP journey is included. No speculative tables are added for future features.
+The design intentionally remains small. The MVP supports one demonstration welfare scheme, a bounded eligibility/application flow, simulated submission, and later status lookup. No production-scale entities or speculative tables are introduced.
 
 ---
 
 # 1. What Data Must Persist?
 
+The MVP needs to persist only the information required to support the journey across turns and after simulated submission.
+
 | Data | Why it must persist |
 |---|---|
-| **User identity and role** | The system must distinguish reporters from authority users and enforce access to sensitive cases and authority-only actions. |
-| **Case / incident information** | The central product object must survive after report creation so it can be reviewed, tracked, and resolved. |
-| **Evidence references** | Evidence must remain associated with the correct case and be accessible according to permissions. |
-| **AI analysis** | The MVP needs to display the AI-assisted summary and severity/reporting assistance after analysis. |
-| **Complaint information** | The generated complaint must remain associated with the case so the reporter can review it and the system can represent its handoff state. |
-| **Timeline events** | Case progress must be represented chronologically and only show states/events that actually occurred in the prototype. |
-| **Resolution information** | A resolved case needs a recorded resolution state and explanation that can be shown to the reporter. |
+| **Scheme definition** | The system needs a stable source for the supported scheme's eligibility criteria and application requirements. |
+| **User/demo identity and profile** | The system needs to associate an application with the citizen/demo user and retrieve that user's application later. |
+| **Application information** | The filled and confirmed application must survive the submission interaction and be associated with a tracking ID. |
+| **Application status** | The user must be able to ask for their status later. |
+| **Tracking ID and submission time** | The user needs a persistent reference to the simulated application and when it was submitted. |
 
-### Important design choice
+The MVP does **not** require a separate conversation-history table. The minimum conversation/application state can be maintained as part of the active application/session mechanism, while the final application data is persisted in `APPLICATION`.
 
-The MVP does **not** need separate tables for every concept in the UI.
-
-For example:
-
-- Severity can be fields on `Case`.
-- Reporting direction can be fields on `Case`.
-- Complaint/handoff state can be fields on `Case`.
-- Resolution can initially be fields on `Case`.
-- Authority progress updates can be represented by `TimelineEvent`.
-
-This keeps the database small and appropriate for a four-hour hackathon.
+If implementation requires temporary conversation state to survive page refreshes or separate sessions, it should remain an implementation detail unless the requirements later justify a dedicated persistent entity.
 
 ---
 
-# 2. Entities and Fields
+# 2. Entities
 
-## 2.1 User
+The MVP has three core entities:
 
-Represents a person who can use CivicProof.
+```text
+USER
+  │
+  │ 1:N
+  ▼
+APPLICATION
+  │
+  │ N:1
+  ▼
+SCHEME
+```
+
+## 2.1 USER
+
+Represents the citizen/demo identity to whom an application belongs.
 
 ### Fields
 
-| Field | Purpose |
-|---|---|
-| `id` | Unique internal user identifier |
-| `name` | Display name |
-| `email` | User identity/contact identifier |
-| `role` | `CITIZEN` or `AUTHORITY` |
-| `createdAt` | When the account was created |
-| `updatedAt` | Last profile update |
+| Field | Type / Shape | Required | Purpose |
+|---|---|---:|---|
+| `id` | Unique identifier | Yes | Identifies the user/demo citizen. |
+| `profile_json` | Structured JSON | Yes | Stores the citizen information needed by the MVP, such as facts collected during the interaction that are relevant to the application. |
 
 ### Ownership
 
-A citizen owns the cases they create.
-
-An authority user does not own citizen cases simply by being an authority; they receive access through the case's authority workflow.
+The user owns their own profile information and the applications associated with them.
 
 ### Notes
 
-`role` is sufficient for the MVP. A separate roles table is not required.
+Full identity/authentication infrastructure is outside the MVP. `USER` exists only because applications need an owner and later status lookup needs a way to associate the application with the demo user.
 
-A separate organization/authority table is also not required because the MVP does not need a full multi-organization authority-management system.
-
----
-
-# 2.2 Case
-
-The central entity representing a reported incident/problem.
-
-### Fields
-
-| Field | Purpose |
-|---|---|
-| `id` | Internal unique identifier |
-| `caseId` | Human-readable case/reference ID shown to the user |
-| `reporterId` | User who created/reported the case |
-| `incidentType` | Civic, public-service, harassment/safety, etc. |
-| `description` | Original user-provided description |
-| `incidentDateTime` | When the incident occurred, if supplied |
-| `location` | Location information, if relevant/available |
-| `isSensitive` | Whether the case requires private handling |
-| `status` | Current case status |
-| `severity` | AI-suggested severity |
-| `severityReason` | Short explanation for the suggestion |
-| `reportingDirection` | Recommended authority/reporting direction |
-| `reportingChannel` | Official channel/handoff information |
-| `complaintDraft` | Generated complaint text |
-| `handoffStatus` | Draft / ready / handed off / confirmed, as actually supported |
-| `authorityUserId` | Authority user currently handling the case, if applicable |
-| `resolutionText` | Recorded resolution information |
-| `resolvedAt` | When the case was recorded as resolved |
-| `createdAt` | Case creation time |
-| `updatedAt` | Last case update time |
-
-### Why these fields belong on Case
-
-The MVP treats the case as the single source of truth for the current state of the report.
-
-The MVP does not require separate reusable entities for:
-
-- Incident type
-- Severity
-- Reporting direction
-- Complaint
-- Handoff
-- Resolution
-
-Those are attributes/states of a case in the current scope.
-
-### Sensitive cases
-
-For sensitive cases:
-
-```text
-Case.isSensitive = true
-```
-
-The application must enforce private access based on this state.
-
-The database should not contain a public-facing alleged-offender entity or public accusation data.
+The profile should contain only information required by the supported scheme/application flow.
 
 ---
 
-# 2.3 Evidence
+# 2.2 SCHEME
 
-Represents a file attached to a case.
+Represents a welfare scheme supported by the MVP.
+
+Although the MVP currently targets one demonstration scheme, keeping scheme information as an entity avoids hard-coding the scheme directly into application records and leaves room for the explicitly permitted 1–2 scheme scope.
 
 ### Fields
 
-| Field | Purpose |
-|---|---|
-| `id` | Unique evidence identifier |
-| `caseId` | Case to which the evidence belongs |
-| `fileName` | Original/display file name |
-| `fileType` | MIME/type information |
-| `storageReference` | Reference to where the actual file is stored |
-| `description` | Optional user-provided description |
-| `uploadedBy` | User who uploaded the evidence |
-| `createdAt` | Upload time |
+| Field | Type / Shape | Required | Purpose |
+|---|---|---:|---|
+| `id` | Unique identifier | Yes | Identifies the scheme. |
+| `name` | Text | Yes | Citizen-facing scheme name. |
+| `eligibility_rules` | Structured JSON | Yes | Defines the eligibility criteria used by the eligibility evaluation. |
+| `required_fields` | Structured JSON | Yes | Defines the application information needed to prepare the application. |
 
-### Important distinction
+### Ownership
 
-The database stores the **reference and metadata** for the evidence.
+Scheme definitions are controlled by the application/product team for the purposes of the hackathon prototype.
 
-The actual file bytes should not be placed directly into the case record.
+### Notes
 
-The MVP also must not treat an uploaded file as automatically authentic, conclusive, or legally admissible.
+The scheme's eligibility rules are a controlled data source for the eligibility workflow. They should not be replaced by unrestricted model-generated rules.
+
+The exact rules and fields must correspond to the selected demonstration scheme. Example criteria such as age, income, land ownership, or residency should not be stored as official scheme rules until the actual scheme is selected and its requirements are established.
 
 ---
 
-# 2.4 AIAnalysis
+# 2.3 APPLICATION
 
-Represents an AI-generated interpretation associated with a case.
-
-### Fields
-
-| Field | Purpose |
-|---|---|
-| `id` | Unique analysis identifier |
-| `caseId` | Case analyzed |
-| `summary` | Structured/condensed incident summary |
-| `structuredData` | Structured information extracted from supplied content |
-| `severitySuggestion` | AI-generated severity suggestion |
-| `reportingSuggestion` | AI-generated reporting-direction assistance |
-| `modelLabel` | Identifier/label for the AI system used |
-| `createdAt` | When the analysis was produced |
-
-### Why this is a separate entity
-
-The MVP needs to distinguish **user-provided information** from **AI-generated interpretation**.
-
-Keeping AI output separate makes that distinction explicit and avoids overwriting the reporter's original description.
-
-The MVP does not require an elaborate AI audit/event system, so one analysis record per case is sufficient for the initial model.
-
----
-
-# 2.5 TimelineEvent
-
-Represents an actual event in the case lifecycle.
+Represents a citizen's application for a supported scheme.
 
 ### Fields
 
-| Field | Purpose |
-|---|---|
-| `id` | Unique event identifier |
-| `caseId` | Case associated with the event |
-| `eventType` | Type of event |
-| `title` | Human-readable event title |
-| `description` | Event/progress details |
-| `actorUserId` | User who caused/recorded the event, if applicable |
-| `createdAt` | Event timestamp |
+| Field | Type / Shape | Required | Purpose |
+|---|---|---:|---|
+| `id` | Unique identifier | Yes | Internal application identifier. |
+| `user_id` | Foreign key → `USER.id` | Yes | Identifies the citizen who owns the application. |
+| `scheme_id` | Foreign key → `SCHEME.id` | Yes | Identifies the scheme being applied for. |
+| `status` | Controlled status value | Yes | Stores the current simulated application state. |
+| `tracking_id` | Unique text identifier | Yes after submission | Public/demo reference returned to the citizen. |
+| `application_data` | Structured JSON | Yes | Stores the prepared and user-confirmed application information. |
+| `submitted_at` | Date/time | No until submission | Records when the simulated application was submitted. |
 
-### Example event types
+### Ownership
 
-```text
-CASE_CREATED
-AI_ANALYSIS_COMPLETED
-COMPLAINT_PREPARED
-OFFICIAL_HANDOFF
-AUTHORITY_REVIEW
-STATUS_UPDATED
-RESOLUTION_RECORDED
-```
+The application belongs to the user identified by `user_id`.
 
-The exact list can be implemented as an enum rather than another database table.
+The application references the scheme used to create it, but the user owns the application record.
 
-### Why this entity is necessary
+### Notes
 
-The citizen needs a chronological case timeline.
-
-Using a dedicated event entity prevents the system from having to infer historical progress from the current `Case.status`.
-
-Only actual recorded events should appear as completed timeline events.
+`application_data` is intentionally kept as structured data rather than creating a separate table for every possible form field. The MVP supports only one scheme, so a flexible application payload avoids unnecessary schema complexity.
 
 ---
 
 # 3. Relationships
 
-## User → Case
+## USER → APPLICATION
+
+**One user can have zero or more applications.**
 
 ```text
-One User (citizen) can create many Cases.
-Each Case has one reporter.
+USER 1 ─────────── N APPLICATION
 ```
 
-Relationship:
+### Relationship purpose
 
-```text
-User 1 ──────── * Case
-       reporter
-```
+The relationship allows the system to:
+
+- Associate an application with its citizen.
+- Retrieve the user's submitted application later.
+- Support the "What's my status?" flow.
 
 ---
 
-## Case → Evidence
+## SCHEME → APPLICATION
+
+**One scheme can have zero or more applications.**
 
 ```text
-One Case can have zero or many Evidence records.
-Each Evidence record belongs to exactly one Case.
+SCHEME 1 ───────── N APPLICATION
 ```
 
-Relationship:
+### Relationship purpose
 
-```text
-Case 1 ──────── * Evidence
-```
+The relationship allows the system to:
 
-A case can therefore exist without evidence.
+- Know which scheme an application belongs to.
+- Apply the appropriate scheme requirements.
+- Keep application data connected to the scheme used to create it.
 
 ---
 
-## Case → AIAnalysis
+# 4. Ownership and Access
 
-```text
-One Case can have one current MVP AIAnalysis record.
-```
+The MVP does not implement full authentication, but the data model should still follow basic ownership boundaries.
 
-Relationship:
+## User-owned data
 
-```text
-Case 1 ──────── 0..1 AIAnalysis
-```
+A user should only be able to access application information associated with their own demo identity/session.
 
-The `0..1` relationship allows a case to exist even if AI is unavailable or has not yet been run.
+This applies particularly to:
 
----
+- `USER.profile_json`
+- `APPLICATION.application_data`
+- `APPLICATION.tracking_id`
+- `APPLICATION.status`
+- `APPLICATION.submitted_at`
 
-## Case → TimelineEvent
+## Scheme data
 
-```text
-One Case has many TimelineEvents.
-Each TimelineEvent belongs to one Case.
-```
+Scheme definitions are application-controlled data:
 
-Relationship:
+- `SCHEME.name`
+- `SCHEME.eligibility_rules`
+- `SCHEME.required_fields`
 
-```text
-Case 1 ──────── * TimelineEvent
-```
+Citizens consume this information through the application flow; they should not be able to arbitrarily change the scheme's eligibility rules.
 
----
+## Backend-controlled application state
 
-## User → TimelineEvent
-
-A user may create/record many timeline events.
-
-```text
-User 1 ──────── * TimelineEvent
-       actor
-```
-
-Some system-generated events can have a null `actorUserId`.
+The application status and submission timestamp should be controlled by the application workflow rather than being freely editable by the citizen.
 
 ---
 
-## Authority User → Case
+# 5. Application Lifecycle
 
-An authority user can handle multiple cases.
-
-A case may have zero or one currently assigned authority user in the MVP.
+The database must support the following conceptual lifecycle:
 
 ```text
-User (authority)
-       1
-       │
-       │ authorityUserId
-       │
-       *
-     Case
-```
-
-This field supports the demo authority workflow without requiring a separate assignment table.
-
----
-
-# 4. Data Ownership
-
-| Data | Owner / Controller | Who can read it? | Who can write it? |
-|---|---|---|---|
-| **User** | The user/account system | Authenticated user; appropriate server-side operations | User/account system |
-| **Case** | Reporter, with authority workflow access | Reporter + authorized authority | Reporter creates/updates allowed fields; authority updates authority-controlled fields |
-| **Evidence** | Case/reporting user | Reporter + authorized authority | Authorized case participants |
-| **AIAnalysis** | Case | Reporter + authorized authority | Backend/AI workflow |
-| **TimelineEvent** | Case | Reporter + authorized authority | Backend and authorized authority workflow |
-| **Resolution fields** | Case | Reporter + authorized authority | Authorized authority workflow |
-
-### Sensitive case rule
-
-If:
-
-```text
-Case.isSensitive = true
-```
-
-then:
-
-- The case must not appear in public views.
-- Evidence must not be publicly accessible.
-- Unrelated citizens must not be able to retrieve it.
-- Authority access must be explicitly authorized.
-- Alleged-offender information must not become a public feed.
-
----
-
-# 5. Data Lifecycle
-
-## 5.1 User
-
-```text
-Account created
-      ↓
-Used for authentication/access control
-      ↓
-May create or handle cases
-      ↓
-Account remains while needed
-```
-
-The MVP does not require account deletion workflows beyond whatever the authentication layer provides.
-
----
-
-## 5.2 Case
-
-```text
-Create
-  ↓
-Collect incident details
-  ↓
-Attach evidence (optional)
-  ↓
-AI analysis
-  ↓
-Complaint preparation
-  ↓
-Official handoff state
-  ↓
-Authority review
-  ↓
-Progress updates
-  ↓
-Resolution
-```
-
-### Updates
-
-A case is updated when:
-
-- User submits or edits permitted incident information
-- AI analysis is completed
-- Complaint draft is generated/edited
-- Handoff state changes
-- Authority reviews/updates the case
-- Resolution is recorded
-
-### Deletion
-
-**Hard deletion is not required as an MVP workflow.**
-
-Because cases may contain sensitive evidence and a case timeline, accidental deletion would be risky during the demo.
-
-If deletion is needed later, retention/deletion rules should be designed deliberately rather than implementing an arbitrary delete button.
-
----
-
-## 5.3 Evidence
-
-```text
-Upload
-  ↓
-Associate with Case
-  ↓
-View according to permissions
-  ↓
-Retain while case requires it
-```
-
-The MVP does not require evidence versioning, forensic chain-of-custody, authenticity verification, or automated deletion policies.
-
----
-
-## 5.4 AIAnalysis
-
-```text
-Case submitted for AI assistance
+Conversation begins
        ↓
-AI analysis created
+User information collected
        ↓
-Displayed as AI-generated
+Scheme identified
        ↓
-Associated with case
-```
-
-If AI fails:
-
-```text
-No fake analysis record
+Eligibility evaluated
        ↓
-Case remains available
+Application prepared
+       ↓
+Application reviewed
+       ↓
+User confirms
+       ↓
+Application submitted (SIMULATED)
+       ↓
+Tracking ID assigned
+       ↓
+Status available for later lookup
 ```
 
-This follows the requirement that an AI failure must not be represented as a successful AI result.
+## Suggested application states
+
+The MVP needs only a small set of states.
+
+### Before submission
+
+- `DRAFT` — application information is being prepared/reviewed.
+
+### After submission
+
+- `SUBMITTED` — simulated submission has been recorded.
+- `UNDER_REVIEW` — optional simulated progression state if the demo shows processing.
+- `APPROVED` — optional simulated outcome for the demo.
+- `REJECTED` — optional simulated outcome for the demo.
+
+The exact status progression should remain minimal and should only include states needed by the demo.
+
+### Important boundary
+
+These are **simulated application states**, not real government processing states.
+
+The UI must make this distinction clear.
 
 ---
 
-## 5.5 TimelineEvent
+# 6. Data Lifecycle
 
-Timeline events are append-oriented:
+## User/Profile
+
+Created when a demo user first enters the application flow or when a demo identity is established.
+
+Updated when the user provides or corrects relevant information.
+
+Retained for as long as the MVP needs to associate the user's applications with them.
+
+---
+
+## Scheme
+
+Created/configured by the application team before the demo.
+
+Read during:
+
+- Scheme matching.
+- Eligibility evaluation.
+- Application preparation.
+
+Not modified by ordinary citizen interactions.
+
+---
+
+## Application
+
+### Draft
+
+Created when the application preparation stage begins.
+
+### Review
+
+Updated if the citizen corrects information before submission.
+
+### Submitted
+
+Once the citizen explicitly confirms the application, the prototype records the simulated submission and assigns a tracking ID.
+
+### Status
+
+The simulated status may change during the demo so that the status-lookup flow can be demonstrated.
+
+---
+
+# 7. Data Needed for Eligibility
+
+The eligibility workflow requires structured facts about the citizen.
+
+For example, a selected scheme might require facts such as:
+
+```json
+{
+  "age": "...",
+  "incomeBracket": "...",
+  "landOwnership": "...",
+  "residency": "..."
+}
+```
+
+These are **illustrative shapes only**, not the official rules for the final scheme.
+
+The important architectural requirement is that:
 
 ```text
-Event occurs
-   ↓
-TimelineEvent created
-   ↓
-Event remains in chronological history
+Natural-language conversation
+          ↓
+Structured citizen facts
+          ↓
+Defined scheme eligibility rules
+          ↓
+Eligibility result
 ```
 
-Existing timeline events should not normally be overwritten because they represent historical case progress.
+The database therefore needs somewhere to persist the relevant structured information. For the MVP, `USER.profile_json` and/or the relevant `APPLICATION.application_data` can hold these facts without introducing a separate eligibility entity.
 
 ---
 
-# 6. Read / Write Patterns
+# 8. Why We Do Not Add More Tables
 
-## Citizen reads
+The following entities are intentionally **not** separate tables in this MVP:
 
-Typical citizen operations:
+| Potential entity | Decision | Reason |
+|---|---|---|
+| `ELIGIBILITY_RESULT` | ❌ Not needed | The eligibility result can be derived from the user's facts and the scheme rules. |
+| `ELIGIBILITY_CRITERION` | ❌ Not needed | One scheme with 3–4 simple criteria does not justify a separate relational entity. |
+| `APPLICATION_FIELD` | ❌ Not needed | `application_data` can hold the small scheme-specific form payload. |
+| `DOCUMENT` | ❌ Not needed | Document upload/OCR is explicitly outside the MVP. |
+| `STATUS_HISTORY` | ❌ Not needed | The MVP only requires current simulated status; a history table would be overbuilding unless the demo specifically requires status history. |
+| `CONVERSATION` | ❌ Not needed initially | The core requirement is current application/session state, not a production conversation archive. |
+| `MESSAGE` | ❌ Not needed | Persisting every chat message is not required by the MVP. |
+| `DEPARTMENT` | ❌ Not needed | The MVP supports one selected scheme and does not require department routing. |
+| `NOTIFICATION` | ❌ Not needed | Proactive reminders are outside the MVP. |
 
-- View their case
-- View case status
-- View timeline
-- View their evidence
-- View AI analysis
-- View/edit complaint before handoff
-- View reporting direction
-- View recorded resolution
-
-## Citizen writes
-
-Typical citizen operations:
-
-- Create a case
-- Add incident details
-- Upload evidence
-- Request AI analysis
-- Generate/edit complaint
-- Continue the official handoff workflow where supported
+This keeps the data model proportional to the hackathon scope.
 
 ---
 
-## Authority reads
-
-Typical authority operations:
-
-- View cases available/assigned to them
-- View case details
-- View evidence according to permissions
-- View AI-assisted summary
-- View severity
-- View timeline
-- View reporting/handoff state
-
-## Authority writes
-
-Typical authority operations:
-
-- Update status
-- Add progress information
-- Record resolution
-- Add corresponding timeline events
-
-Assignment is P1 in the requirements, so the MVP does **not** require a complex assignment-management data model.
-
----
-
-# 7. Expected Scale
-
-The hackathon MVP should be designed for a **small demonstration-scale workload**, not production-scale government traffic.
-
-Expected characteristics:
-
-- Small number of users
-- Small number of cases
-- Low concurrent usage
-- Small number of evidence files per case
-- Mostly simple CRUD reads/writes
-- AI requests triggered by user actions
-- Timeline reads ordered by case and timestamp
-
-### Important implication
-
-There is no reason for the MVP database to require:
-
-- Sharding
-- Distributed databases
-- Event-streaming infrastructure
-- Read replicas
-- Complex caching layers
-- Search clusters
-
-A conventional persistent relational data model is sufficient.
-
-These are future scaling concerns, not MVP requirements.
-
----
-
-# 8. Basic Security and Access Notes
-
-## Authentication boundary
-
-Every protected request should be associated with an authenticated user.
-
-The backend should determine the user's identity and role rather than trusting a client-provided role.
-
----
-
-## Case access
-
-### Citizen
-
-A citizen should only be able to access cases they are authorized to view, normally:
-
-```text
-case.reporterId == currentUser.id
-```
-
-### Authority
-
-An authority user should only access cases allowed by the authority workflow.
-
-For the MVP this can be:
-
-```text
-case.authorityUserId == currentUser.id
-```
-
-or another explicitly controlled authority-access rule.
-
-### Public users
-
-Public access should **not** expose sensitive cases or their evidence.
-
----
-
-## Sensitive cases
-
-Sensitive cases require stronger access checks:
-
-```text
-isSensitive = true
-        ↓
-No public access
-        ↓
-Reporter + authorized authority only
-```
-
-The case ID alone must not be treated as sufficient authorization to retrieve a sensitive case.
-
----
-
-## Evidence
-
-Evidence access must be checked against the case permissions.
-
-A user must not be able to access an evidence file simply by guessing its storage reference or evidence ID.
-
----
-
-## Authority-only writes
-
-Operations such as:
-
-- Status changes
-- Progress updates
-- Resolution recording
-
-must be rejected for ordinary citizen users.
-
----
-
-## AI data handling
-
-Only information necessary for the requested AI operation should be sent to the AI component.
-
-AI-generated content must be stored/returned as AI-generated content and must not silently overwrite original user-provided facts.
-
----
-
-# 9. Minimal ER Diagram
+# 9. Mermaid ER Diagram
 
 ```mermaid
 erDiagram
-    USER ||--o{ CASE : reports
-    USER ||--o{ TIMELINE_EVENT : records
-    USER o|--o{ CASE : handles
-
-    CASE ||--o{ EVIDENCE : contains
-    CASE ||--o| AI_ANALYSIS : has
-    CASE ||--o{ TIMELINE_EVENT : contains
+    USER ||--o{ APPLICATION : owns
+    SCHEME ||--o{ APPLICATION : "is applied for"
 
     USER {
         string id PK
+        json profile_json
+    }
+
+    SCHEME {
+        string id PK
         string name
-        string email
-        enum role
-        datetime createdAt
-        datetime updatedAt
+        json eligibility_rules
+        json required_fields
     }
 
-    CASE {
+    APPLICATION {
         string id PK
-        string caseId UK
-        string reporterId FK
-        string authorityUserId FK
-        enum incidentType
-        text description
-        datetime incidentDateTime
-        string location
-        boolean isSensitive
-        enum status
-        enum severity
-        text severityReason
-        string reportingDirection
-        string reportingChannel
-        text complaintDraft
-        enum handoffStatus
-        text resolutionText
-        datetime resolvedAt
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    EVIDENCE {
-        string id PK
-        string caseId FK
-        string fileName
-        string fileType
-        string storageReference
-        string description
-        string uploadedBy FK
-        datetime createdAt
-    }
-
-    AI_ANALYSIS {
-        string id PK
-        string caseId FK
-        text summary
-        json structuredData
-        string severitySuggestion
-        string reportingSuggestion
-        string modelLabel
-        datetime createdAt
-    }
-
-    TIMELINE_EVENT {
-        string id PK
-        string caseId FK
-        string actorUserId FK
-        enum eventType
-        string title
-        text description
-        datetime createdAt
+        string user_id FK
+        string scheme_id FK
+        string status
+        string tracking_id UK
+        json application_data
+        datetime submitted_at
     }
 ```
 
 ---
 
-# 10. Why There Are Only Five Tables
+# 10. Basic Access Rules
 
-The MVP needs exactly five persistent entities:
+The MVP should follow these basic rules:
+
+| Data / Action | Access |
+|---|---|
+| Read supported scheme information | Application workflow |
+| Modify scheme eligibility rules | Application/admin-controlled only |
+| Read own profile | Current demo user |
+| Update own relevant profile information | Current demo user through the application flow |
+| Create application | Current demo user |
+| Read own application | Current demo user |
+| Update draft application | Current demo user before confirmation |
+| Confirm application | Current demo user |
+| Simulate submission | Current demo user after confirmation |
+| Read own status | Current demo user |
+| Modify submitted application | Not allowed through the normal citizen flow |
+| Modify application status | Application-controlled simulated workflow |
+
+Because full authentication is excluded, the exact mechanism used to identify the current demo user is intentionally left to implementation design.
+
+---
+
+# 11. Database Design Principles
+
+### Keep the schema small
+
+The MVP does not need a production government data platform.
+
+### Persist only what the user journey requires
+
+Every persistent field should support at least one of:
+
+- Eligibility.
+- Application preparation.
+- User confirmation.
+- Simulated submission.
+- Tracking.
+- Later status lookup.
+
+### Keep scheme rules controlled
+
+Eligibility rules should come from the defined scheme data rather than being invented dynamically by the AI.
+
+### Keep application data flexible
+
+The MVP's single-scheme scope does not justify creating a separate relational column/table for every form field.
+
+### Protect ownership boundaries
+
+Even without full authentication, the data model should make it possible to associate applications with the correct demo user and avoid exposing another user's application.
+
+---
+
+# 12. Final MVP Data Model
+
+The minimum persistent model is:
 
 ```text
 USER
-  │
-  └── CASE
-        ├── EVIDENCE
-        ├── AI_ANALYSIS
-        └── TIMELINE_EVENT
+ ├── id
+ └── profile_json
+       │
+       │ owns
+       ▼
+APPLICATION
+ ├── id
+ ├── user_id
+ ├── scheme_id
+ ├── application_data
+ ├── status
+ ├── tracking_id
+ └── submitted_at
+       │
+       │ references
+       ▼
+SCHEME
+ ├── id
+ ├── name
+ ├── eligibility_rules
+ └── required_fields
 ```
 
-### Deliberately NOT separate tables
+This is sufficient to support the MVP's core journey:
 
-| Candidate table | Decision | Why |
-|---|---|---|
-| `IncidentType` | **Not needed** | A small fixed set of categories can be an enum/value rather than a table. |
-| `Severity` | **Not needed** | Severity is a property of a case/AI analysis, not an independently managed entity. |
-| `Authority` | **Not needed** | The MVP only needs authority users and reporting-direction information; it does not require a full authority directory. |
-| `Assignment` | **Not needed** | Assignment is P1; a current authority user reference is enough for the MVP. |
-| `Complaint` | **Not needed** | The MVP only needs one complaint draft/state per case. |
-| `Resolution` | **Not needed** | One recorded resolution can be stored on the case. |
-| `Handoff` | **Not needed** | The MVP needs handoff state, not a separate integration transaction system. |
-| `Notification` | **Not needed** | Notifications are explicitly outside the MVP. |
-| `AuditLog` | **Not needed** | Timeline events cover the MVP's visible case history; a separate enterprise audit system is unnecessary for the hackathon. |
-| `LegalRule` / `Regulation` | **Not needed** | Regulatory context is P1 and the MVP does not require a full legal knowledge system. |
-| `Organization` | **Not needed** | Multi-organization authority management is outside the MVP. |
-| `PublicReport` | **Not needed** | The MVP does not have a public incident feed/map. |
+> **Describe situation → collect facts → evaluate eligibility → prepare application → review → confirm → simulated submission → tracking ID → later status lookup**
 
----
-
-# Final Database Decision
-
-The MVP requires a **small persistent relational model** centered on `Case`.
-
-```text
-User
-  ↓
-Case
-  ├── Evidence
-  ├── AIAnalysis
-  └── TimelineEvent
-```
-
-This is enough to prove the complete product journey without introducing speculative infrastructure.
-
-The key principle is:
-
-> **Persist the state needed to continue and verify the case journey — not every concept that might exist in a future version of CivicProof.**
+No additional persistent entities are required unless a later requirement explicitly introduces a need for them.

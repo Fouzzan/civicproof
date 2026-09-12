@@ -1,5 +1,7 @@
 import { Prisma, TimelineEventType, type Case, type User } from "@prisma/client";
 
+import type { AiAnalysisResult } from "@/lib/ai/schema";
+
 import { generateCaseId } from "@/lib/cases/case-id";
 import { prisma } from "@/lib/db";
 import { isSensitiveIncidentType } from "@/lib/report/incident-types";
@@ -59,9 +61,19 @@ function isCaseIdCollision(error: unknown): boolean {
  *
  * None of them is ever read from the request body.
  */
+/**
+ * A analysis that has already been verified as genuinely ours (see
+ * lib/ai/draft-token.ts). Callers must not pass unverified client input here.
+ */
+export type VerifiedAnalysis = {
+  readonly result: AiAnalysisResult;
+  readonly modelLabel: string;
+};
+
 export async function createCaseForReporter(
   input: CreateCaseRequest,
   reporter: User,
+  analysis?: VerifiedAnalysis,
 ): Promise<Case> {
   const isSensitive = isSensitiveIncidentType(input.incidentType);
   const incidentDateTime = toIncidentDateTime(input.date, input.time);
@@ -84,6 +96,17 @@ export async function createCaseForReporter(
             isSensitive,
             // status and handoffStatus intentionally omitted: the schema
             // defaults (CREATED / DRAFT) are the only truthful starting states.
+            //
+            // Severity and reporting direction are advisory mirrors of the AI
+            // analysis, written only when a verified analysis accompanies the
+            // report.
+            ...(analysis
+              ? {
+                  severity: analysis.result.severity,
+                  severityReason: analysis.result.severityReason,
+                  reportingDirection: analysis.result.reportingDirection,
+                }
+              : {}),
           },
         });
 
@@ -97,6 +120,39 @@ export async function createCaseForReporter(
             actorUserId: reporter.id,
           },
         });
+
+        // The analysis was produced before the case existed, so it is stored
+        // here in the same transaction: a case never exists with a half-written
+        // analysis, and a failure leaves neither.
+        if (analysis) {
+          await tx.aIAnalysis.create({
+            data: {
+              caseId: created.id,
+              summary: analysis.result.summary,
+              structuredData: {
+                suggestedCategory: analysis.result.suggestedCategory,
+                severityReason: analysis.result.severityReason,
+                immediateSafetyGuidance: analysis.result.immediateSafetyGuidance,
+                potentiallyRelevantRegulatoryContext:
+                  analysis.result.potentiallyRelevantRegulatoryContext,
+              },
+              severitySuggestion: analysis.result.severity,
+              reportingSuggestion: analysis.result.reportingDirection,
+              modelLabel: analysis.modelLabel,
+            },
+          });
+
+          await tx.timelineEvent.create({
+            data: {
+              caseId: created.id,
+              eventType: TimelineEventType.AI_ANALYSIS_COMPLETED,
+              title: "AI-assisted analysis completed",
+              description:
+                "CivicProof produced an AI-assisted summary, severity suggestion and reporting direction before this report was filed. These are suggestions, not official determinations.",
+              actorUserId: reporter.id,
+            },
+          });
+        }
 
         return created;
       });

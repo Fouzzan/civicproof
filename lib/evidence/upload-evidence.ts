@@ -88,13 +88,14 @@ export async function uploadEvidenceForCase(
 
   const fileName = safeFileName(file.name);
 
-  // Vercel Blob only supports `access: "public"`, so the object is readable by
-  // anyone holding its URL. Two mitigations, per Docs/13-SECURITY.md §10:
-  //   - addRandomSuffix makes the URL unguessable;
-  //   - the URL is stored here and NEVER returned to a client. Any future
-  //     viewer must proxy the bytes behind a case-authorization check.
+  // The store is private: the object requires authentication to read, so there is
+  // no permanent public URL to leak. This is what Docs/13-SECURITY.md §10 asks
+  // for — private evidence must not be reachable through a public URL.
+  //
+  // addRandomSuffix additionally keeps the pathname unguessable, so knowing a
+  // case id is not enough to name someone's file.
   const stored = await put(`cases/${target.id}/evidence/${fileName}`, Buffer.from(bytes), {
-    access: "public",
+    access: "private",
     addRandomSuffix: true,
     contentType: detectedType,
   });
@@ -104,7 +105,10 @@ export async function uploadEvidenceForCase(
       caseId: target.id,
       fileName,
       fileType: detectedType,
-      storageReference: stored.url,
+      // The pathname, not a URL: it is the key `get(pathname, { access: "private" })`
+      // needs, and it carries no host or token. Server-side only — never
+      // returned by an API or rendered in a page.
+      storageReference: stored.pathname,
       description: description?.trim() || null,
       uploadedBy: uploader.id,
     },

@@ -30,5 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "_comment": "scripts/ holds standalone verification tools run via `node --experimental-strip-types`, which requires explicit .ts import extensions that the app compiler rejects. They are verified by running them, not by tsc.",
+  "exclude": ["node_modules", "scripts"]
 }

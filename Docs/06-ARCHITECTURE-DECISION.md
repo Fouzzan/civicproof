@@ -1,398 +1,288 @@
-# CivicProof — Architecture Decision
+# 06 — Architecture Decision
 
-## Purpose
+This document defines the minimum architectural capabilities required to implement the MVP described in `01-PROBLEM.md` through `05-MVP.md`.
 
-This document decides **what kinds of system components CivicProof needs for the MVP**.
-
-It intentionally does **not** choose specific technologies or vendors. Technology selection comes later.
-
-The decision is based on `docs/01-PROBLEM.md` through `docs/05-MVP.md`.
+No specific technology choices are made here.
 
 ---
 
-## Architecture Decision Summary
+# 1. Architecture Decisions
 
-| Component | Decision | Why |
-|---|---|---|
-| **UI** | **REQUIRED** | The MVP is a user-facing reporting and case-tracking product with separate citizen and authority workflows, plus a mobile-friendly citizen experience. |
-| **Backend** | **REQUIRED** | The MVP needs trusted server-side handling for cases, evidence associations, permissions, status updates, and the distinction between prototype state and official submission. |
-| **Database (persistent data)** | **REQUIRED** | Cases need to persist beyond the report-creation screen so a case ID can retrieve the case, timelines can be maintained, and authority updates/resolution can be reflected to the citizen. |
-| **API** | **REQUIRED** | The UI needs a controlled way to communicate with backend capabilities such as creating cases, requesting AI analysis, uploading/associating evidence, and updating case status. |
-| **AI** | **REQUIRED** | AI-assisted case structuring, severity suggestion, reporting-direction assistance, and complaint generation are explicit P0 MVP capabilities and are central to the product's value proposition. |
-| **Agents (multi-step, tool-using AI)** | **NOT REQUIRED** | The MVP needs AI assistance, but its required tasks can be handled as bounded AI operations. A multi-step autonomous agent would add complexity without being necessary to prove the core workflow. |
-| **External integrations** | **OPTIONAL** | The MVP must provide a legitimate official reporting handoff, but it does not need direct integration with every authority. An integration is valuable only where a real, supported channel exists. |
-| **Authentication** | **REQUIRED** | The MVP contains private sensitive cases and authority-only actions, so the system needs a way to distinguish users and enforce permission-aware access. |
-| **Cloud deployment** | **OPTIONAL** | A deployed product makes the hackathon demo easier to share and test across devices, but cloud deployment is not logically required to prove the MVP if the system can run locally. |
-| **Background processing** | **NOT REQUIRED** | Nothing in the MVP requires long-running or scheduled work. The core journey can complete through user-triggered operations; asynchronous processing can be added later if evidence/AI workloads demand it. |
+| Area | Decision | Status | Justification |
+|---|---|---|---|
+| **UI** | A citizen-facing conversational interface is required. | **REQUIRED** | The primary journey starts with the citizen describing their situation in plain language and continues through questions, eligibility, application review, submission, and status lookup. A chat/conversation interface directly supports this flow. |
+| **Backend** | A backend service is required for scheme rules, application processing, agent orchestration, and simulated submission/status behavior. | **REQUIRED** | Eligibility rules and application/status records should not depend on client-side logic alone. The backend provides the controlled environment for the core business workflow. |
+| **Database** | A minimal persistent data store is required for supported scheme information, eligibility/application data, and simulated application status. | **REQUIRED** | The demo must create an application, return a tracking ID, and allow the user to ask for its status later. That requires state to persist beyond a single interaction. |
+| **API** | An internal API boundary is required between the UI and backend services. | **REQUIRED** | The frontend needs a controlled way to send conversation/application requests and receive results without directly owning scheme rules or persistence. It also gives the architecture a clear separation between presentation and business logic. |
+| **AI** | AI is required for natural-language understanding and conversational interaction. | **REQUIRED** | The core product promise is that a citizen can describe their situation naturally and receive guided assistance instead of navigating government terminology and raw forms. |
+| **Agent** | A lightweight agent/orchestration layer is required rather than treating the product as one isolated model call. | **REQUIRED** | The flow spans multiple turns and stages: understanding the situation, asking for missing information, invoking scheme/eligibility logic, preparing an application, and later retrieving status. The agent therefore needs state across turns and the ability to choose the next action. |
+| **Auth** | Full user authentication is excluded from the MVP demo. | **NOT REQUIRED** | The MVP explicitly excludes full authentication, and the hackathon demo does not require production-grade identity management to demonstrate the core journey. A simple demo identity/session mechanism may still be needed internally, but it is not a product feature. |
+| **Cloud deployment** | The MVP must be runnable locally; cloud deployment is optional. | **OPTIONAL** | The success criteria concern the demonstrated user journey, not production hosting. Cloud deployment can improve demo accessibility but is not necessary if the local demo is reliable. |
 
 ---
 
-# 1. UI — REQUIRED
+# 2. Architecture Interpretation
 
-The MVP cannot exist as a backend-only system because its core value is an end-to-end user workflow.
-
-The UI must support at least:
-
-- Citizen incident creation
-- Incident type selection
-- Incident details
-- Evidence upload
-- AI analysis results
-- Severity suggestion
-- Reporting direction
-- Complaint review
-- Official handoff
-- Case ID and timeline
-- Authority case review
-- Authority status/resolution updates
-- Immediate safety guidance
-- Private handling indicators
-- Mobile-friendly citizen interaction
-
-This directly follows the MVP's citizen and authority flows and the requirement for a mobile-friendly citizen experience. The MVP specifically defines the user journey from incident creation through resolution. 
-
-**Decision:** REQUIRED
-
----
-
-# 2. Backend — REQUIRED
-
-The MVP needs trusted application logic behind the UI.
-
-The backend is responsible for things such as:
-
-- Creating and retrieving cases
-- Generating case identifiers
-- Associating evidence with the correct case
-- Applying sensitivity/privacy rules
-- Enforcing authority-only operations
-- Recording case status and timeline events
-- Recording resolution
-- Calling AI capabilities without exposing secrets to the client
-- Representing complaint/handoff states honestly
-
-This is especially important because privacy, permission-aware access, data integrity, and truthful case-state representation are P0 requirements.
-
-A purely client-side implementation would make those controls difficult to trust and would not provide an appropriate boundary for sensitive case data.
-
-**Decision:** REQUIRED
-
----
-
-# 3. Database / Persistent Data — REQUIRED
-
-The MVP explicitly requires a case to survive beyond the initial report.
-
-Persistent information includes at minimum:
-
-- Case ID
-- Incident type
-- Incident details
-- Sensitivity/privacy state
-- Evidence references
-- AI-assisted analysis
-- Severity suggestion
-- Reporting direction
-- Complaint draft/state
-- Handoff/submission state
-- Current case status
-- Timeline events
-- Authority updates
-- Resolution information
-
-The citizen must be able to view a case after creation, while an authority must be able to review and update the same case. That requires persistent shared state.
-
-**Decision:** REQUIRED
-
----
-
-# 4. API — REQUIRED
-
-The MVP needs a controlled communication boundary between the UI and server-side capabilities.
-
-The API layer needs to support operations such as:
-
-- Create/read a case
-- Upload or associate evidence
-- Request AI analysis
-- Generate a complaint
-- Retrieve case status/timeline
-- Perform authority status updates
-- Record resolution
-- Apply access checks
-
-This does **not** mean the MVP needs a large public API platform or a collection of microservices.
-
-A small internal application API is sufficient.
-
-**Important distinction:** API is REQUIRED as a communication mechanism; a **public/developer API is NOT REQUIRED**.
-
-**Decision:** REQUIRED
-
----
-
-# 5. AI — REQUIRED
-
-AI is not merely a decorative enhancement in this MVP.
-
-The requirements explicitly make AI-assisted incident structuring a P0 capability, and the MVP uses AI to:
-
-1. Structure the user's description
-2. Summarize the incident
-3. Suggest severity
-4. Help identify a reporting direction
-5. Generate a formal complaint draft
-
-AI output must remain distinguishable from user-provided or verified information.
-
-AI must **not**:
-
-- Determine guilt
-- Determine criminal liability
-- Invent facts
-- Invent evidence
-- Invent laws
-- Invent authorities
-- Claim an official submission
-- Claim authority acknowledgment or resolution without an actual recorded state
-
-Therefore, AI is a core component, but it should be deliberately bounded.
-
-**Decision:** REQUIRED
-
----
-
-# 6. Agents / Multi-Step Tool-Using AI — NOT REQUIRED
-
-The MVP does not require an autonomous agent.
-
-The required AI behavior is primarily a set of bounded transformations:
+The resulting minimum architecture is:
 
 ```text
-User information
-      ↓
-AI structure/summarize
-      ↓
-Severity suggestion
-      ↓
-Reporting-direction assistance
-      ↓
-Complaint draft
+┌──────────────────────────────┐
+│       Citizen-facing UI      │
+│     Conversational chat      │
+└──────────────┬───────────────┘
+               │
+               │ Internal API
+               ▼
+┌──────────────────────────────┐
+│      Agent / Orchestrator    │
+│                              │
+│  Understand → Ask → Decide   │
+│  → Prepare → Confirm → Act  │
+└───────┬──────────┬───────────┘
+        │          │
+        │          │
+        ▼          ▼
+┌─────────────┐  ┌──────────────────┐
+│ Scheme &    │  │ AI language      │
+│ eligibility │  │ understanding    │
+│ rules       │  │                  │
+└──────┬──────┘  └──────────────────┘
+       │
+       ▼
+┌──────────────────────────────┐
+│ Minimal persistent data      │
+│                              │
+│ Scheme / Application /       │
+│ Status / Conversation state  │
+└──────────────────────────────┘
 ```
 
-These operations do not require an AI system that independently plans actions, chooses tools, executes external operations, and continues until a goal is reached.
-
-Adding an agent would increase:
-
-- Implementation complexity
-- Debugging difficulty
-- Failure modes
-- Safety concerns
-- Demo risk
-
-without proving more of the MVP.
-
-**This is a classic "sounds impressive" component that should be rejected for the hackathon MVP.**
-
-**Decision:** NOT REQUIRED
+This is a conceptual architecture only. Specific frameworks, providers, databases, or deployment platforms are intentionally deferred.
 
 ---
 
-# 7. External Integrations — OPTIONAL
+# 3. Important Boundary: AI vs. Eligibility Rules
 
-The MVP requires a legitimate path toward an official reporting channel, but it explicitly does **not** require integration with every government or authority system.
+Although AI is **REQUIRED**, the architecture should not make the language model the sole authority for eligibility.
 
-The minimum viable behavior can therefore be:
+The preferred responsibility split is:
 
 ```text
-Complaint Draft
-      ↓
-Ready for Official Handoff
-      ↓
-Official Channel / Handoff
-      ↓
-Confirmed Submission
-     only if genuinely confirmed
+Citizen's natural-language message
+              ↓
+        AI understands
+              ↓
+   Structured user facts
+              ↓
+   Defined scheme rules
+              ↓
+    Eligibility evaluation
+              ↓
+      Agent explains result
 ```
 
-A real external integration could make the product stronger if an appropriate, supported channel is available. However, inventing or simulating an official submission would violate the MVP's truthfulness requirement.
+### Reason
+
+The MVP requires trustworthy eligibility guidance. The eligibility result should be grounded in the defined rules for the single supported scheme rather than relying on an unrestricted model to invent or infer official eligibility requirements.
+
+AI is therefore primarily responsible for **understanding, conversation, explanation, and application assistance**, while the scheme's defined rules provide the controlled basis for the eligibility evaluation.
+
+---
+
+# 4. Agent Requirement — What "Agent" Means for This MVP
+
+The HOJATHON brief calls for AI agents, so the architecture should contain an actual multi-step agent workflow.
+
+However, this does **not** mean building a complex autonomous agent framework.
+
+For this MVP, the minimum useful agent behavior is:
+
+1. Understand the citizen's situation.
+2. Identify what information is missing.
+3. Ask the next relevant question.
+4. Maintain the facts collected across turns.
+5. Invoke the appropriate scheme/eligibility logic.
+6. Explain the result.
+7. Prepare application information.
+8. Wait for explicit user confirmation.
+9. Trigger simulated submission.
+10. Return or later retrieve the application status.
+
+The agent may therefore use a small, controlled set of actions/tools such as:
+
+- Evaluate eligibility.
+- Prepare application.
+- Submit simulated application.
+- Retrieve application status.
+
+The exact implementation is intentionally left undecided.
+
+---
+
+# 5. Memory Requirement
+
+The agent needs **conversation/application state across turns**, but this should not be confused with building a sophisticated long-term memory system.
+
+For the MVP, the required state is limited to information necessary to continue the current journey, such as:
+
+- User-provided eligibility facts.
+- Answers to follow-up questions.
+- Selected scheme.
+- Prepared application information.
+- User corrections.
+- Confirmation state.
+- Tracking ID.
+- Simulated application status.
+
+The later status lookup also requires enough persistent information to associate the user/demo session with the submitted application.
+
+---
+
+# 6. Database Scope
+
+The database is intentionally minimal.
+
+At a conceptual level it needs to represent:
+
+### Scheme
+
+- Supported scheme.
+- Eligibility criteria.
+- Information needed for eligibility/application.
+
+### Application
+
+- Applicant/demo identity reference.
+- Selected scheme.
+- Submitted application information.
+- Tracking ID.
+- Submission state.
+
+### Status
+
+- Current simulated status.
+- Information needed to retrieve/display that status.
+
+### Conversation/Application State
+
+- Facts collected during the current interaction.
+- Information required to resume the application flow.
+
+The exact schema is deferred to a later data-model document.
+
+---
+
+# 7. API Scope
+
+The API is **internal**, not a public government integration.
+
+Its purpose is to connect the citizen-facing UI to the application's controlled backend workflow.
+
+Conceptually, the API needs to support operations corresponding to:
+
+```text
+Conversation / agent interaction
+        ↓
+Eligibility evaluation
+        ↓
+Application preparation
+        ↓
+Application confirmation/submission
+        ↓
+Tracking/status retrieval
+```
+
+There is **no requirement for a public API** or external government API integration in the MVP.
+
+---
+
+# 8. Authentication Decision
+
+Full authentication is deliberately excluded.
+
+The MVP's purpose is to demonstrate:
+
+> **Situation → Eligibility → Application → Simulated Submission → Tracking → Status**
+
+not identity verification.
+
+However, the system may still need a simple mechanism to maintain a demo user's application state during the session. That mechanism should not grow into a full authentication feature unless the requirements change.
+
+---
+
+# 9. Cloud Deployment Decision
+
+Local execution is sufficient for the MVP.
+
+Cloud deployment may be useful if it makes the hackathon demonstration easier to access or share, but it is not part of the product's core acceptance criteria.
 
 Therefore:
 
-- **Official-channel handoff:** REQUIRED
-- **Direct external-system integration:** OPTIONAL
-- **Fake/pretended official integration:** NOT ALLOWED
-
-External integrations should be added only when they materially improve the real workflow.
-
-**Decision:** OPTIONAL
+> **Build for a reliable local demo first; deploy to the cloud only if time and stability permit.**
 
 ---
 
-# 8. Authentication — REQUIRED
+# 10. Architecture Scope Guardrails
 
-Authentication is required because the MVP has different classes of users and sensitive information.
+The following should **not** be added merely to make the architecture sound more sophisticated:
 
-At minimum, the system needs to distinguish:
+### ❌ Complex multi-agent system
 
-```text
-Citizen / Reporter
-        ≠
-Authority User
-```
+The MVP has one focused journey. Multiple specialized agents are unnecessary unless a concrete requirement emerges.
 
-It also needs to protect sensitive cases and evidence from unauthorized access.
+### ❌ Autonomous long-running agent
 
-The requirements explicitly call for:
+The agent does not need to operate independently for hours or perform background tasks. The required interaction is bounded and user-driven.
 
-- Private sensitive cases
-- Permission-aware access
-- Authority-only operations
-- Restricted sensitive evidence
-- No public exposure of sensitive reports
+### ❌ Sophisticated long-term memory
 
-A demo-only hardcoded role switch may be useful for rapidly demonstrating the concept, but the architecture still needs an **authentication/identity boundary**. Otherwise the privacy and authority-permission requirements are not meaningfully represented.
+The MVP only needs conversation and application state required to complete the journey and retrieve a submitted application later.
 
-For the hackathon, the implementation can be deliberately lightweight, but authentication should not be confused with a public registration system.
+### ❌ Public API platform
 
-**Decision:** REQUIRED
+The backend API exists to serve the prototype UI, not to expose a reusable government-services platform.
 
----
+### ❌ Real government integration
 
-# 9. Cloud Deployment — OPTIONAL
+This is explicitly excluded by the MVP constraints.
 
-Cloud deployment is useful for a hackathon because it allows:
+### ❌ Production-grade authentication
 
-- Judges to access the product from a link
-- Testing on multiple devices
-- Easy sharing between teammates
-- Demonstration of the mobile citizen workflow
-- A more realistic product presentation
+Full authentication is explicitly excluded from the MVP.
 
-However, cloud deployment is not part of the core problem being solved.
+### ❌ Microservices
 
-The MVP can technically be demonstrated locally if necessary.
+The requirements do not justify splitting this small MVP into multiple independently deployed services.
 
-Therefore cloud deployment is an **enabler for demonstration and usability**, not a fundamental product requirement.
+### ❌ Complex infrastructure
 
-**Decision:** OPTIONAL
+The architecture should optimize for a reliable five-hour hackathon demonstration, not production-scale deployment.
 
 ---
 
-# 10. Background Processing — NOT REQUIRED
+# 11. Final Architecture Decision
 
-The MVP does not define any task that must continue running after the user leaves the current interaction.
+The minimum architecture is:
 
-The primary operations are user-triggered:
+| Capability | Decision |
+|---|---|
+| Citizen-facing conversational UI | **REQUIRED** |
+| Backend business logic | **REQUIRED** |
+| Scheme/eligibility rules | **REQUIRED** |
+| Minimal persistence | **REQUIRED** |
+| Internal API boundary | **REQUIRED** |
+| AI language understanding | **REQUIRED** |
+| Multi-turn agent/orchestration | **REQUIRED** |
+| Conversation/application state | **REQUIRED** |
+| Full authentication | **NOT REQUIRED** |
+| Cloud deployment | **OPTIONAL** |
+| Real government API integration | **EXCLUDED** |
+| Multiple schemes simultaneously | **EXCLUDED** |
+| OCR/document processing | **EXCLUDED** |
+| Multilingual UI | **EXCLUDED** |
 
-- Submit incident
-- Analyze with AI
-- Generate complaint
-- Create case
-- Update status
-- Record resolution
+## Architecture principle
 
-None inherently requires scheduled jobs, queues, workers, or long-running background tasks.
+> **Use the minimum architecture necessary to make the agent genuinely useful and the end-to-end citizen journey reliable.**
 
-For the four-hour hackathon, introducing background processing would add infrastructure and failure modes without improving the proof of concept.
-
-Potential future reasons to add it could include:
-
-- Large video processing
-- Heavy evidence analysis
-- Notifications
-- Scheduled escalation
-- Batch processing
-- External-system synchronization
-
-Those are outside the current MVP.
-
-**Decision:** NOT REQUIRED
-
----
-
-# Architecture Boundary for the MVP
-
-The smallest architecture that supports the MVP is therefore:
-
-```text
-                 ┌─────────────────────┐
-                 │         UI          │
-                 │ Citizen + Authority │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │        API          │
-                 └──────────┬──────────┘
-                            │
-             ┌──────────────┼──────────────┐
-             ▼              ▼              ▼
-      ┌────────────┐ ┌────────────┐ ┌─────────────┐
-      │  Backend   │ │     AI     │ │  Database   │
-      │  Logic     │ │ Assistance │ │  Persistent │
-      └────────────┘ └────────────┘ └─────────────┘
-             │
-             ▼
-      ┌────────────────────┐
-      │ External handoff   │
-      │ / integrations     │
-      │     (optional)     │
-      └────────────────────┘
-```
-
-Authentication/authorization is a **cross-cutting boundary** around protected case and authority operations.
-
-Background processing and autonomous agents are deliberately outside this MVP architecture.
-
----
-
-# Strict Anti-Overengineering Check
-
-The following components should **not** be added merely to make the architecture sound more advanced:
-
-| Tempting Addition | MVP Decision | Reason |
-|---|---|---|
-| Autonomous AI agents | **NOT REQUIRED** | Bounded AI operations are sufficient. |
-| Microservices | **NOT REQUIRED** | The MVP does not need independently scalable services. |
-| Message queues | **NOT REQUIRED** | No required long-running/background workflow exists. |
-| Event streaming infrastructure | **NOT REQUIRED** | A normal persisted case timeline is sufficient. |
-| Public developer API | **NOT REQUIRED** | The API is only needed for the application's own UI/backend communication. |
-| Full government API ecosystem | **NOT REQUIRED** | Official handoff is enough when direct integration is unavailable. |
-| Native mobile application | **NOT REQUIRED** | The requirement is mobile-friendly usage, not a native app. |
-| Advanced evidence-forensics pipeline | **NOT REQUIRED** | The MVP only needs evidence attachment and review. |
-| Advanced legal engine | **NOT REQUIRED** | Regulatory context is P1 and must remain contextual, not a legal decision engine. |
-| Public incident/social network | **NOT REQUIRED** | It is outside the MVP and conflicts with sensitive-case privacy. |
-| Real-time chat | **NOT REQUIRED** | Case updates are sufficient for the MVP. |
-| Automated escalation | **NOT REQUIRED** | Explicitly outside the MVP feature set. |
-
----
-
-# Final Decision
-
-## Required
-
-- **UI**
-- **Backend**
-- **Persistent database**
-- **API**
-- **AI**
-- **Authentication**
-
-## Optional
-
-- **External integrations**
-- **Cloud deployment**
-
-## Not Required
-
-- **Agents / multi-step tool-using AI**
-- **Background processing**
-
-The MVP should therefore be built as a **small full-stack application with persistent case state, protected user roles, bounded AI assistance, and an honest official-handoff workflow**.
-
-The architecture should optimize for one thing:
-
-> **Reliably demonstrate the complete incident → evidence → AI assistance → complaint → handoff → case tracking → authority update → resolution journey.**
-
-Anything that does not directly help prove that journey should be deferred.
+The architecture should support the product—not become a separate demonstration of technical complexity.

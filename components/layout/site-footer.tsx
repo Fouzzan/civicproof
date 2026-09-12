@@ -1,21 +1,29 @@
+import { Container } from "@/components/layout/container";
+
 /**
  * Global application footer.
  *
- * The disclaimer is a product constraint, not decoration: CivicProof must never
- * present itself as a replacement for emergency services or an official
- * authority (Docs/01-PROBLEM.md, "Problem Boundary").
+ * The disclaimer is a product constraint, not decoration: Sahayak must never
+ * present itself as a government service or imply that anything it records was
+ * sent to an authority. It stays on every page for that reason.
  */
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border bg-background">
-      <div className="mx-auto w-full max-w-5xl space-y-1 px-4 py-6 text-xs text-muted-foreground">
-        <p>
-          CivicProof helps you turn an incident into a structured, trackable
-          case. It does not replace emergency services, the police, or any
-          official authority.
-        </p>
-        <p>Prototype build &mdash; not an official government service.</p>
-      </div>
+    <footer className="mt-auto border-t border-border bg-card">
+      <Container width="form">
+        <div className="space-y-2 py-6 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            Sahayak is a demonstration of an AI assistant for government welfare
+            schemes. The scheme it supports is <strong>fictional</strong>, and its
+            eligibility criteria are invented for the demo.
+          </p>
+          <p>
+            Submission and status are <strong>simulated</strong>. Nothing is sent
+            to a real government department, and Sahayak is not an official
+            service.
+          </p>
+        </div>
+      </Container>
     </footer>
   );
 }

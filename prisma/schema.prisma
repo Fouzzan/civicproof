@@ -92,6 +92,10 @@ model User {
   assignedCases    Case[]          @relation("CaseAuthority")
   uploadedEvidence Evidence[]      @relation("EvidenceUploader")
   recordedEvents   TimelineEvent[] @relation("TimelineActor")
+
+  // --- Sahayak ---
+  applications Application[] @relation("ApplicationApplicant")
+  conversation Conversation? @relation("ConversationOwner")
 }
 
 model Case {
@@ -216,4 +220,126 @@ model TimelineEvent {
 
   // Timeline reads are always "events for this case, in chronological order".
   @@index([caseId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Sahayak — government welfare scheme assistant
+//
+// Implements the USER / SCHEME / APPLICATION model in Docs/07-DATABASE.md on the
+// existing Prisma/Neon infrastructure rather than migrating the database
+// (Docs/12-IMPLEMENTATION-PLAN-TRANSITION.md §0).
+//
+// The CivicProof models above are left intact and unused: dropping them needs a
+// destructive migration and buys the demo nothing.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle of a Sahayak application.
+///
+/// Every state after DRAFT is SIMULATED. None of them means a real government
+/// department received anything — the UI must always say so.
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+/// A supported welfare scheme.
+///
+/// This row is the ONLY authority on eligibility. The language model may read a
+/// scheme through a tool, but it must never invent, edit or override one
+/// (Docs/09-AI-DESIGN.md §3).
+model Scheme {
+  id String @id @default(cuid())
+
+  /// Stable identifier used by the tools, e.g. "demo-farmer-income-support".
+  /// Slug rather than cuid so tool arguments are readable and debuggable.
+  slug String @unique
+
+  name    String
+  summary String
+
+  /// Controlled eligibility criteria, evaluated deterministically by
+  /// lib/eligibility. Shape is validated on read — never trusted blindly.
+  eligibilityRules Json
+
+  /// Fields the prepared application must contain.
+  requiredFields Json
+
+  /// Fictional demonstration scheme. Always true in the MVP, and the UI labels
+  /// every scheme carrying this flag as a demo so no one mistakes it for a real
+  /// entitlement (Docs/05-MVP.md §2.1).
+  isDemo Boolean @default(true)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+}
+
+/// A citizen's application to a scheme.
+model Application {
+  id String @id @default(cuid())
+
+  /// Server-derived from the authenticated session — never accepted from the
+  /// client, and every read re-checks it.
+  userId String
+  user   User   @relation("ApplicationApplicant", fields: [userId], references: [id], onDelete: Restrict)
+
+  schemeId String
+  scheme   Scheme @relation(fields: [schemeId], references: [id], onDelete: Restrict)
+
+  status ApplicationStatus @default(DRAFT)
+
+  /// Citizen-facing reference, e.g. "DEMO-482913".
+  ///
+  /// Null until simulated submission: a tracking ID must never exist for an
+  /// application that was not actually submitted, because its presence is what
+  /// the UI treats as proof of submission.
+  trackingId String? @unique
+
+  /// Facts the citizen supplied, keyed by fact id. The latest correction wins.
+  collectedFacts Json
+
+  /// The prepared application, keyed by required field id.
+  applicationData Json
+
+  /// Last deterministic eligibility evaluation. Written only by
+  /// lib/eligibility, never by the model.
+  eligibilityResult Json?
+
+  /// Set when the citizen explicitly confirms. ApplicationSubmitter refuses to
+  /// submit while this is null (Docs/09-AI-DESIGN.md, safety rule 7).
+  confirmedAt DateTime?
+  submittedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The two access paths: "this user's applications" and "the live draft".
+  @@index([userId, status])
+}
+
+/// Server-authoritative chat transcript.
+///
+/// The transcript lives here rather than round-tripping through the browser so
+/// a client cannot forge assistant turns or tool results. Eligibility and
+/// application state are read from Application, never from this transcript.
+model Conversation {
+  id String @id @default(cuid())
+
+  /// One live conversation per citizen. "Start over" clears it in place.
+  userId String @unique
+  user   User   @relation("ConversationOwner", fields: [userId], references: [id], onDelete: Restrict)
+
+  messages Json
+
+  /// The draft the conversation is currently working on, if any.
+  activeApplicationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
