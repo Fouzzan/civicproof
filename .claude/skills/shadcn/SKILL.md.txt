@@ -1,0 +1,15 @@
+# ShadCN UI Guidelines
+
+When building React/Next.js applications:
+
+- Prefer shadcn/ui components when an appropriate component exists.
+- Use Tailwind CSS for styling.
+- Do not recreate existing shadcn components unnecessarily.
+- Keep components reusable.
+- Prefer composition over duplicated components.
+- Use responsive/mobile-first layouts.
+- Include loading, error and empty states.
+- Use accessible form controls.
+- Keep visual hierarchy clear.
+- Avoid excessive animations.
+- Do not introduce another UI component library unless explicitly requested.
