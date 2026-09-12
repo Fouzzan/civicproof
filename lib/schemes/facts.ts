@@ -12,8 +12,47 @@ import type { CollectedFacts, FactValue, SchemeDefinition, SchemeFact } from "@/
  * failure mode the deterministic checker exists to prevent.
  */
 
-const TRUE_WORDS = new Set(["true", "yes", "y", "haan", "haa", "1"]);
-const FALSE_WORDS = new Set(["false", "no", "n", "nahi", "0"]);
+/**
+ * Whole-word yes/no answers, as a fallback.
+ *
+ * The model normally sends a real boolean, so this only fires when it passes a
+ * citizen's word straight through. Matching is against the ENTIRE trimmed
+ * string, never a substring — "എനിക്ക് വീടില്ല" does not match "ഇല്ല", and is
+ * rejected rather than guessed at. That is deliberate: this is a lookup table,
+ * not a language model, and a fact it cannot read must come back as a question
+ * rather than a value.
+ *
+ * Malayalam entries are limited to words that answer a FACTUAL question, which
+ * is all this catalogue asks ("do you own your home?", "are you studying?").
+ *
+ * Deliberately EXCLUDED: വേണം and വേണ്ട. They express wanting something, not
+ * whether it is true — answering "do you own your home?" with "വേണം" would
+ * mean "I want one", which is close to the opposite of yes. Reading it as
+ * `true` would put a wrong value into an eligibility decision.
+ */
+const TRUE_WORDS = new Set([
+  "true",
+  "yes",
+  "y",
+  "haan",
+  "haa",
+  "1",
+  // Malayalam: "yes", colloquial "yes", and "there is / I have".
+  "അതെ",
+  "ഉവ്വ്",
+  "ഉണ്ട്",
+]);
+
+const FALSE_WORDS = new Set([
+  "false",
+  "no",
+  "n",
+  "nahi",
+  "0",
+  // Malayalam: "no / there is none", and "it is not".
+  "ഇല്ല",
+  "അല്ല",
+]);
 
 export type FactRejection = {
   readonly factId: string;

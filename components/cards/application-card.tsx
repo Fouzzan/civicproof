@@ -8,25 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { ApplicationFieldView, ApplicationView } from "@/lib/agent/cards";
+import type { Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
 
 type ApplicationCardProps = {
   readonly application: ApplicationView;
   /** Called after confirmation is recorded, so the chat can ask for submission. */
   readonly onConfirmed: () => void;
   readonly disabled: boolean;
+  readonly language?: Language;
 };
 
-function formatValue(field: ApplicationFieldView): string {
+function formatValue(field: ApplicationFieldView, language: Language): string {
+  const t = strings(language);
+
   if (field.value === null) {
-    return "Not provided";
+    return t.notProvided;
   }
 
   if (typeof field.value === "boolean") {
-    return field.value ? "Yes" : "No";
+    return field.value ? t.yes : t.no;
   }
 
   if (typeof field.value === "number") {
-    const formatted = new Intl.NumberFormat("en-IN").format(field.value);
+    const formatted = new Intl.NumberFormat(language === "ml" ? "ml-IN" : "en-IN").format(
+      field.value,
+    );
 
     return field.unit ? `${formatted} ${field.unit}` : formatted;
   }
@@ -51,7 +58,9 @@ export function ApplicationCard({
   application,
   onConfirmed,
   disabled,
+  language = "en",
 }: ApplicationCardProps) {
+  const t = strings(language);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -77,7 +86,7 @@ export function ApplicationCard({
         setError(
           payload && typeof payload === "object" && "error" in payload
             ? String((payload as { error: unknown }).error)
-            : "Your confirmation could not be recorded. Nothing was submitted.",
+            : t.confirmFailed,
         );
         return;
       }
@@ -96,13 +105,13 @@ export function ApplicationCard({
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold tracking-wide uppercase">
-            Your application
+            {t.applicationTitle}
           </h3>
-          {application.isDemo ? <DemoBadge /> : null}
+          {application.isDemo ? <DemoBadge language={language} /> : null}
         </div>
 
         <p className="rounded-lg border border-severity-medium/30 bg-severity-medium/10 px-3 py-2 text-xs font-semibold text-severity-medium">
-          Not submitted yet — please check everything below.
+          {t.applicationNotSubmitted}
         </p>
 
         <p className="text-sm text-muted-foreground">{application.schemeName}</p>
@@ -120,7 +129,7 @@ export function ApplicationCard({
                     : "text-sm font-medium break-words"
                 }
               >
-                {formatValue(field)}
+                {formatValue(field, language)}
               </dd>
             </div>
           ))}
@@ -128,8 +137,7 @@ export function ApplicationCard({
 
         <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
           <Pencil aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          Something wrong? Just tell me in the box below — for example &ldquo;my income
-          is actually 80,000&rdquo; — and I will update it.
+          {t.applicationEditHint}
         </p>
 
         {error ? (
@@ -149,14 +157,11 @@ export function ApplicationCard({
           <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/[0.04] p-4">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <ShieldCheck aria-hidden="true" className="size-4 text-primary" />
-              Ready to submit?
+              {t.confirmTitle}
             </p>
 
             <p className="text-xs leading-relaxed text-muted-foreground">
-              This records your application in the Sahayak{" "}
-              <strong className="text-foreground">demonstration system only</strong>. It
-              will <strong className="text-foreground">not</strong> be sent to a real
-              government department.
+              {t.confirmDisclosure}
             </p>
 
             <Button
@@ -169,28 +174,28 @@ export function ApplicationCard({
               {isConfirming ? (
                 <>
                   <Loader2 aria-hidden="true" className="animate-spin" />
-                  Recording your demo application…
+                  {t.confirmBusy}
                 </>
               ) : isConfirmed ? (
                 <>
                   <CircleCheck aria-hidden="true" />
-                  Confirmed
+                  {t.confirmDone}
                 </>
               ) : (
                 <>
                   <Send aria-hidden="true" />
-                  Confirm &amp; submit demo application
+                  {t.confirmButton}
                 </>
               )}
             </Button>
 
             <p className="text-center text-xs text-muted-foreground">
-              Nothing is filed until you press this.
+              {t.confirmFootnote}
             </p>
           </div>
         ) : (
           <p className="rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground">
-            I still need a little more before you can submit this.
+            {t.applicationIncomplete}
           </p>
         )}
       </CardContent>

@@ -4,6 +4,8 @@ import { DemoBadge } from "@/components/cards/demo-label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { SchemeView } from "@/lib/agent/cards";
+import type { Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
 
 /**
  * What Sahayak can help with.
@@ -21,23 +23,33 @@ import type { SchemeView } from "@/lib/agent/cards";
  * for. Nothing is hidden: every service is still listed, grouped by area, with
  * the count stated. The rich card returns on its own once discovery ranks.
  */
-const CATEGORY_LABEL: Record<string, string> = {
-  EDUCATION: "Education",
-  EMPLOYMENT: "Employment",
-  SENIOR_CITIZENS: "Senior Citizens",
-  AGRICULTURE: "Agriculture",
-  HOUSING: "Housing",
-  ACCESSIBILITY: "Accessibility",
-};
+
+/** Category display name, authored in both languages. */
+function categoryLabel(category: string, language: Language): string {
+  const t = strings(language);
+  const byCategory: Record<string, string> = {
+    EDUCATION: t.categoryEDUCATION,
+    EMPLOYMENT: t.categoryEMPLOYMENT,
+    SENIOR_CITIZENS: t.categorySENIOR_CITIZENS,
+    AGRICULTURE: t.categoryAGRICULTURE,
+    HOUSING: t.categoryHOUSING,
+    ACCESSIBILITY: t.categoryACCESSIBILITY,
+  };
+
+  return byCategory[category] ?? category;
+}
 
 /** Above this, a list of services reads as a catalogue rather than a suggestion. */
 const SHORTLIST_LIMIT = 2;
 
-function label(category: string): string {
-  return CATEGORY_LABEL[category] ?? category;
-}
-
-function SchemeDetail({ scheme }: { readonly scheme: SchemeView }) {
+function SchemeDetail({
+  scheme,
+  language,
+}: {
+  readonly scheme: SchemeView;
+  readonly language: Language;
+}) {
+  const t = strings(language);
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -48,9 +60,9 @@ function SchemeDetail({ scheme }: { readonly scheme: SchemeView }) {
           <div className="min-w-0 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {label(scheme.category)}
+                {categoryLabel(scheme.category, language)}
               </span>
-              {scheme.isDemo ? <DemoBadge /> : null}
+              {scheme.isDemo ? <DemoBadge language={language} /> : null}
             </div>
             <h3 className="text-base font-semibold">{scheme.name}</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
@@ -64,7 +76,7 @@ function SchemeDetail({ scheme }: { readonly scheme: SchemeView }) {
         <div>
           <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             <ClipboardList aria-hidden="true" className="size-3.5" />
-            To qualify, you need to meet all of these
+            {t.schemeCriteriaTitle}
           </p>
           <ul className="mt-2.5 space-y-1.5">
             {scheme.criteria.map((criterion) => (
@@ -83,7 +95,14 @@ function SchemeDetail({ scheme }: { readonly scheme: SchemeView }) {
   );
 }
 
-function CatalogueIndex({ schemes }: { readonly schemes: readonly SchemeView[] }) {
+function CatalogueIndex({
+  schemes,
+  language,
+}: {
+  readonly schemes: readonly SchemeView[];
+  readonly language: Language;
+}) {
+  const t = strings(language);
   const byCategory = schemes.reduce<Record<string, SchemeView[]>>((groups, scheme) => {
     (groups[scheme.category] ??= []).push(scheme);
     return groups;
@@ -97,15 +116,14 @@ function CatalogueIndex({ schemes }: { readonly schemes: readonly SchemeView[] }
             <Landmark aria-hidden="true" className="size-4" />
           </span>
           <h3 className="text-sm font-semibold tracking-wide uppercase">
-            Services Sahayak covers
+            {t.schemeCatalogueTitle}
           </h3>
-          <DemoBadge />
+          <DemoBadge language={language} />
         </div>
 
         <p className="text-sm text-muted-foreground">
-          {schemes.length} demonstration services across{" "}
-          {Object.keys(byCategory).length} areas of life. Tell me your situation
-          and I&rsquo;ll work out which apply.
+          {schemes.length} {t.schemeCatalogueLead}{" "}
+          {Object.keys(byCategory).length} {t.schemeCatalogueLeadTail}
         </p>
 
         <Separator />
@@ -114,7 +132,7 @@ function CatalogueIndex({ schemes }: { readonly schemes: readonly SchemeView[] }
           {Object.entries(byCategory).map(([category, group]) => (
             <div key={category}>
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {label(category)}
+                {categoryLabel(category, language)}
               </p>
               <ul className="mt-1.5 space-y-1">
                 {group.map((scheme) => (
@@ -131,19 +149,25 @@ function CatalogueIndex({ schemes }: { readonly schemes: readonly SchemeView[] }
   );
 }
 
-export function SchemeCard({ schemes }: { readonly schemes: readonly SchemeView[] }) {
+export function SchemeCard({
+  schemes,
+  language = "en",
+}: {
+  readonly schemes: readonly SchemeView[];
+  readonly language?: Language;
+}) {
   if (schemes.length === 0) {
     return null;
   }
 
   if (schemes.length > SHORTLIST_LIMIT) {
-    return <CatalogueIndex schemes={schemes} />;
+    return <CatalogueIndex schemes={schemes} language={language} />;
   }
 
   return (
     <div className="space-y-3">
       {schemes.map((scheme) => (
-        <SchemeDetail key={scheme.slug} scheme={scheme} />
+        <SchemeDetail key={scheme.slug} scheme={scheme} language={language} />
       ))}
     </div>
   );

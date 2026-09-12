@@ -1,15 +1,27 @@
 import { FlaskConical, Info } from "lucide-react";
 import { cn } from "cn";
 
+import type { Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
+
 /**
  * The demonstration labelling.
  *
- * Requirement 11 is not decorative: a citizen must never leave this product
- * believing a fictional scheme is real or that a simulated submission reached a
- * government department. These two components are the only approved wording,
- * so the disclosure cannot drift between screens.
+ * Not decorative: a citizen must never leave this product believing a fictional
+ * service is real, or that a simulated submission reached a government
+ * department. These two components are the only approved wording, so the
+ * disclosure cannot drift between screens — or between languages.
+ *
+ * `language` defaults to English so marketing and preview surfaces, which have
+ * no conversation to take a language from, keep working untouched.
  */
-export function DemoBadge({ className }: { readonly className?: string }) {
+export function DemoBadge({
+  className,
+  language = "en",
+}: {
+  readonly className?: string;
+  readonly language?: Language;
+}) {
   return (
     <span
       className={cn(
@@ -18,7 +30,7 @@ export function DemoBadge({ className }: { readonly className?: string }) {
       )}
     >
       <FlaskConical aria-hidden="true" className="size-3.5" />
-      Demo scheme
+      {strings(language).demoBadge}
     </span>
   );
 }

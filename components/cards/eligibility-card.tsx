@@ -4,6 +4,8 @@ import { cn } from "cn";
 import { DemoBadge } from "@/components/cards/demo-label";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CriterionView, EligibilityView } from "@/lib/agent/cards";
+import type { Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
 
 /**
  * The eligibility result.
@@ -13,26 +15,30 @@ import type { CriterionView, EligibilityView } from "@/lib/agent/cards";
  * explanation for a failure is the rule's own stored wording — the model has no
  * opportunity to paraphrase a criterion into something it does not say.
  */
-const OUTCOME = {
-  LIKELY_ELIGIBLE: {
-    title: "You appear to be eligible",
-    tone: "border-l-severity-low",
-    chip: "border-severity-low/30 bg-severity-low/10 text-severity-low",
-    label: "Likely eligible",
-  },
-  NOT_ELIGIBLE: {
-    title: "You do not appear to be eligible",
-    tone: "border-l-severity-urgent",
-    chip: "border-severity-urgent/30 bg-severity-urgent/10 text-severity-urgent",
-    label: "Not eligible",
-  },
-  MORE_INFORMATION_NEEDED: {
-    title: "A little more information is needed",
-    tone: "border-l-severity-medium",
-    chip: "border-severity-medium/30 bg-severity-medium/10 text-severity-medium",
-    label: "More information needed",
-  },
-} as const;
+function outcomeWording(language: Language) {
+  const t = strings(language);
+
+  return {
+    LIKELY_ELIGIBLE: {
+      title: t.eligibleTitle,
+      label: t.eligibleChip,
+      tone: "border-l-severity-low",
+      chip: "border-severity-low/30 bg-severity-low/10 text-severity-low",
+    },
+    NOT_ELIGIBLE: {
+      title: t.notEligibleTitle,
+      label: t.notEligibleChip,
+      tone: "border-l-severity-urgent",
+      chip: "border-severity-urgent/30 bg-severity-urgent/10 text-severity-urgent",
+    },
+    MORE_INFORMATION_NEEDED: {
+      title: t.moreInfoTitle,
+      label: t.moreInfoChip,
+      tone: "border-l-severity-medium",
+      chip: "border-severity-medium/30 bg-severity-medium/10 text-severity-medium",
+    },
+  } as const;
+}
 
 const CRITERION_ICON = {
   PASSED: Check,
@@ -46,8 +52,15 @@ const CRITERION_TONE = {
   UNKNOWN: "text-muted-foreground",
 } as const;
 
-function Criterion({ criterion }: { readonly criterion: CriterionView }) {
+function Criterion({
+  criterion,
+  language,
+}: {
+  readonly criterion: CriterionView;
+  readonly language: Language;
+}) {
   const Icon = CRITERION_ICON[criterion.status];
+  const t = strings(language);
 
   return (
     <li className="flex items-start gap-2.5">
@@ -71,18 +84,24 @@ function Criterion({ criterion }: { readonly criterion: CriterionView }) {
         ) : null}
         <span className="sr-only">
           {criterion.status === "PASSED"
-            ? "Met"
+            ? t.criterionMet
             : criterion.status === "FAILED"
-              ? "Not met"
-              : "Not yet known"}
+              ? t.criterionNotMet
+              : t.criterionUnknown}
         </span>
       </div>
     </li>
   );
 }
 
-export function EligibilityCard({ eligibility }: { readonly eligibility: EligibilityView }) {
-  const outcome = OUTCOME[eligibility.outcome];
+export function EligibilityCard({
+  eligibility,
+  language = "en",
+}: {
+  readonly eligibility: EligibilityView;
+  readonly language?: Language;
+}) {
+  const outcome = outcomeWording(language)[eligibility.outcome];
 
   return (
     <Card className={cn("border-l-4", outcome.tone)}>
@@ -97,7 +116,7 @@ export function EligibilityCard({ eligibility }: { readonly eligibility: Eligibi
             >
               {outcome.label}
             </span>
-            {eligibility.isDemo ? <DemoBadge /> : null}
+            {eligibility.isDemo ? <DemoBadge language={language} /> : null}
           </div>
 
           <h3 className="text-base font-semibold">{outcome.title}</h3>
@@ -106,7 +125,7 @@ export function EligibilityCard({ eligibility }: { readonly eligibility: Eligibi
 
         <ul className="space-y-2.5">
           {eligibility.criteria.map((criterion) => (
-            <Criterion key={criterion.id} criterion={criterion} />
+            <Criterion key={criterion.id} criterion={criterion} language={language} />
           ))}
         </ul>
       </CardContent>

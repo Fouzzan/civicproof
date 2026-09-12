@@ -15,6 +15,8 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatWelcome } from "@/components/chat/chat-welcome";
 import { Button } from "@/components/ui/button";
 import type { AgentCard, ChatTurnResponse } from "@/lib/agent/cards";
+import { detectLanguage, type Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
 
 /**
  * The Sahayak conversation.
@@ -28,20 +30,28 @@ import type { AgentCard, ChatTurnResponse } from "@/lib/agent/cards";
  * from real tool results. When those disagree, the cards are what is true.
  */
 
+/**
+ * Each entry remembers the language of the message that produced it.
+ *
+ * Language is decided per message and never stored anywhere — no setting, no
+ * database column. A citizen who switches part-way keeps their earlier cards in
+ * the language they were answered in, which is what actually happened, rather
+ * than having the whole transcript retranslate underneath them.
+ */
 type Entry =
-  | { readonly kind: "user"; readonly id: string; readonly text: string }
+  | {
+      readonly kind: "user";
+      readonly id: string;
+      readonly text: string;
+      readonly language: Language;
+    }
   | {
       readonly kind: "agent";
       readonly id: string;
       readonly text: string;
       readonly cards: readonly AgentCard[];
+      readonly language: Language;
     };
-
-/** Honest about what is happening, without naming tools or the model. */
-const THINKING_DEFAULT = "Sahayak is thinking…";
-const THINKING_SUBMIT = "Recording your application in the demo system…";
-
-const CONFIRM_MESSAGE = "I confirm. Please submit my application.";
 
 function newId(): string {
   return crypto.randomUUID();
@@ -105,7 +115,9 @@ export function SahayakChat({
   const [entries, setEntries] = useState<readonly Entry[]>([]);
   const [draft, setDraft] = useState("");
   const [isBusy, setIsBusy] = useState(false);
-  const [thinkingLabel, setThinkingLabel] = useState(THINKING_DEFAULT);
+  const [thinkingLabel, setThinkingLabel] = useState(strings("en").thinkingDefault);
+  // The language of the most recent message, for chrome rendered outside entries.
+  const [language, setLanguage] = useState<Language>("en");
 
   const endRef = useRef<HTMLDivElement>(null);
   const openingSent = useRef(false);
@@ -123,17 +135,25 @@ export function SahayakChat({
   }, []);
 
   const send = useCallback(
-    async (text: string, label: string = THINKING_DEFAULT) => {
+    async (text: string, submitting = false) => {
       const trimmed = text.trim();
 
       if (trimmed.length === 0 || isBusy) {
         return;
       }
 
+      // Decided from THIS message alone, so a switch takes effect immediately.
+      const turnLanguage = detectLanguage(trimmed);
+      const t = strings(turnLanguage);
+
       setIsBusy(true);
-      setThinkingLabel(label);
+      setLanguage(turnLanguage);
+      setThinkingLabel(submitting ? t.thinkingSubmit : t.thinkingDefault);
       setDraft("");
-      setEntries((current) => [...current, { kind: "user", id: newId(), text: trimmed }]);
+      setEntries((current) => [
+        ...current,
+        { kind: "user", id: newId(), text: trimmed, language: turnLanguage },
+      ]);
 
       try {
         const response = await fetch("/api/chat", {
@@ -152,7 +172,13 @@ export function SahayakChat({
 
           setEntries((current) => [
             ...current,
-            { kind: "agent", id: newId(), text: "", cards: [{ kind: "error", message }] },
+            {
+              kind: "agent",
+              id: newId(),
+              text: "",
+              cards: [{ kind: "error", message }],
+              language: turnLanguage,
+            },
           ]);
           return;
         }
@@ -166,6 +192,7 @@ export function SahayakChat({
             id: newId(),
             text: turn.message ?? "",
             cards: turn.cards ?? [],
+            language: turnLanguage,
           },
         ]);
       } catch {
@@ -182,6 +209,7 @@ export function SahayakChat({
                   "I could not reach Sahayak. Check your connection — nothing you told me has been lost.",
               },
             ],
+            language: turnLanguage,
           },
         ]);
       } finally {
@@ -209,8 +237,8 @@ export function SahayakChat({
    * without the stored timestamp.
    */
   const handleConfirmed = useCallback(() => {
-    void send(CONFIRM_MESSAGE, THINKING_SUBMIT);
-  }, [send]);
+    void send(strings(language).confirmMessage, true);
+  }, [send, language]);
 
   async function startOver() {
     if (isBusy) {
@@ -223,6 +251,9 @@ export function SahayakChat({
       await fetch("/api/chat", { method: "DELETE" });
       setEntries([]);
       setDraft("");
+      // A fresh conversation starts from the English default until the next
+      // message says otherwise.
+      setLanguage("en");
     } catch {
       // A failed reset leaves the conversation exactly as it was, which is safe.
     } finally {
@@ -264,23 +295,31 @@ export function SahayakChat({
     });
   }
 
-  function renderCard(card: AgentCard, index: number, entryId: string) {
+  function renderCard(
+    card: AgentCard,
+    index: number,
+    entryId: string,
+    entryLanguage: Language,
+  ) {
     const isStale =
       card.kind !== "error" && newestOfKind.get(card.kind) !== `${entryId}:${index}`;
 
     const body = (() => {
       switch (card.kind) {
         case "scheme":
-          return <SchemeCard schemes={card.schemes} />;
+          return <SchemeCard schemes={card.schemes} language={entryLanguage} />;
 
         case "eligibility":
-          return <EligibilityCard eligibility={card.eligibility} />;
+          return (
+            <EligibilityCard eligibility={card.eligibility} language={entryLanguage} />
+          );
 
         case "application":
           return (
             <ApplicationCard
               application={card.application}
               onConfirmed={handleConfirmed}
+              language={entryLanguage}
               disabled={
                 isBusy || isStale || card.application.applicationId !== activeApplicationId
               }
@@ -288,13 +327,15 @@ export function SahayakChat({
           );
 
         case "submission":
-          return <SubmissionCard submission={card.submission} />;
+          return (
+            <SubmissionCard submission={card.submission} language={entryLanguage} />
+          );
 
         case "status":
-          return <StatusCard status={card.status} />;
+          return <StatusCard status={card.status} language={entryLanguage} />;
 
         case "error":
-          return <ErrorCard message={card.message} />;
+          return <ErrorCard message={card.message} language={entryLanguage} />;
       }
     })();
 
@@ -322,7 +363,7 @@ export function SahayakChat({
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
       {entries.length > 0 ? (
         <div className="shrink-0 pt-4">
-          <AgentActivity stages={stages} compactOnMobile />
+          <AgentActivity stages={stages} compactOnMobile language={language} />
         </div>
       ) : null}
 
@@ -340,7 +381,9 @@ export function SahayakChat({
                 <AgentBubble text={entry.text} />
                 {entry.cards.length > 0 ? (
                   <div className={cn("space-y-3", entry.text.trim().length > 0 && "sm:pl-10")}>
-                    {entry.cards.map((card, index) => renderCard(card, index, entry.id))}
+                    {entry.cards.map((card, index) =>
+                      renderCard(card, index, entry.id, entry.language),
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -363,7 +406,7 @@ export function SahayakChat({
 
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Demonstration only — nothing is sent to a real government department.
+            {strings(language).chatDemoFootnote}
           </p>
           {entries.length > 0 ? (
             <Button
@@ -375,7 +418,7 @@ export function SahayakChat({
               className="shrink-0"
             >
               <RotateCcw aria-hidden="true" />
-              Start over
+              {strings(language).startOver}
             </Button>
           ) : null}
         </div>

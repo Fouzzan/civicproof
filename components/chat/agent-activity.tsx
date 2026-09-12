@@ -2,6 +2,8 @@ import { Check, Circle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "cn";
 
 import type { AgentCard } from "@/lib/agent/cards";
+import type { Language } from "@/lib/i18n/language";
+import { strings } from "@/lib/i18n/strings";
 
 /**
  * What Sahayak is doing, at a level a citizen can safely be shown.
@@ -17,13 +19,21 @@ import type { AgentCard } from "@/lib/agent/cards";
  */
 export type ActivityStage = "done" | "active" | "pending";
 
-const STAGES = [
-  "Understanding your situation",
-  "Finding relevant services",
-  "Checking eligibility",
-  "Preparing application",
-  "Tracking",
-] as const;
+/** Fixed, pre-authored stage names — never anything the model produced. */
+function stageNames(language: Language): readonly string[] {
+  const t = strings(language);
+
+  return [
+    t.activityUnderstanding,
+    t.activityFinding,
+    t.activityChecking,
+    t.activityPreparing,
+    t.activityTracking,
+  ];
+}
+
+/** Stage count is fixed regardless of language. */
+const STAGE_COUNT = 5;
 
 /**
  * Derive how far the journey has actually progressed.
@@ -60,9 +70,11 @@ export function AgentActivity({
   stages,
   className,
   compactOnMobile = false,
+  language = "en",
 }: {
   readonly stages: readonly ActivityStage[];
   readonly className?: string;
+  readonly language?: Language;
   /**
    * In the chat the panel sits above the transcript, where five lines would eat
    * most of a phone screen. Collapsed to one line there and shown in full from
@@ -70,9 +82,11 @@ export function AgentActivity({
    */
   readonly compactOnMobile?: boolean;
 }) {
+  const t = strings(language);
+  const STAGES = stageNames(language);
   const current = Math.min(
     stages.filter((stage) => stage === "done").length,
-    STAGES.length - 1,
+    STAGE_COUNT - 1,
   );
   const activeIndex = stages.indexOf("active");
   const headline = STAGES[activeIndex === -1 ? current : activeIndex];
@@ -85,7 +99,7 @@ export function AgentActivity({
     >
       <p className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
         <Sparkles aria-hidden="true" className="size-3.5 text-primary" />
-        Sahayak
+        {t.activityBrand}
       </p>
 
       {compactOnMobile ? (
@@ -103,7 +117,7 @@ export function AgentActivity({
             ))}
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-            Step {Math.min(doneCount + 1, STAGES.length)} of {STAGES.length}
+            {t.activityStep} {Math.min(doneCount + 1, STAGE_COUNT)} {t.activityOf} {STAGE_COUNT}
           </p>
         </div>
       ) : null}
@@ -135,7 +149,11 @@ export function AgentActivity({
               </span>
 
               <span className="sr-only">
-                {stage === "done" ? "complete" : stage === "active" ? "in progress" : "not started"}
+                {stage === "done"
+                  ? t.activityComplete
+                  : stage === "active"
+                    ? t.activityInProgress
+                    : t.activityNotStarted}
               </span>
             </li>
           );
