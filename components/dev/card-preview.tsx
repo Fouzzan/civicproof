@@ -20,6 +20,7 @@ const SCHEME: SchemeView = {
   name: "Student Education Assistance",
   summary:
     "Support with course and living costs for students from lower-income households.",
+  category: "EDUCATION",
   isDemo: true,
   criteria: [
     "You are currently studying",
@@ -27,6 +28,22 @@ const SCHEME: SchemeView = {
     "Your household income is ₹3,00,000 a year or less",
   ],
 };
+
+/** The full catalogue, to check the compact index rendering. */
+const CATALOGUE: SchemeView[] = [
+  SCHEME,
+  { ...SCHEME, slug: "school-student-support", name: "School Student Support" },
+  { ...SCHEME, slug: "job-seeker-support", name: "Job Seeker Support", category: "EMPLOYMENT" },
+  { ...SCHEME, slug: "skill-training-grant", name: "Skill Training Grant", category: "EMPLOYMENT" },
+  { ...SCHEME, slug: "senior-citizen-assistance", name: "Senior Citizen Assistance", category: "SENIOR_CITIZENS" },
+  { ...SCHEME, slug: "senior-wellbeing-allowance", name: "Senior Wellbeing Allowance", category: "SENIOR_CITIZENS" },
+  { ...SCHEME, slug: "farmer-income-support", name: "Farmer Income Support", category: "AGRICULTURE" },
+  { ...SCHEME, slug: "crop-protection-support", name: "Crop Protection Support", category: "AGRICULTURE" },
+  { ...SCHEME, slug: "basic-housing-assistance", name: "Basic Housing Assistance", category: "HOUSING" },
+  { ...SCHEME, slug: "home-repair-grant", name: "Home Repair Grant", category: "HOUSING" },
+  { ...SCHEME, slug: "accessibility-support", name: "Accessibility Support", category: "ACCESSIBILITY" },
+  { ...SCHEME, slug: "caregiver-support-allowance", name: "Caregiver Support Allowance", category: "ACCESSIBILITY" },
+];
 
 const eligible: EligibilityView = {
   outcome: "LIKELY_ELIGIBLE",
@@ -136,8 +153,12 @@ export function CardPreview() {
 
   return (
     <div className="space-y-10 py-10">
-      <Section title="Scheme">
+      <Section title="Scheme — shortlist (1-2 services)">
         <SchemeCard schemes={[SCHEME]} />
+      </Section>
+
+      <Section title="Scheme — whole catalogue (compact index)">
+        <SchemeCard schemes={CATALOGUE} />
       </Section>
 
       <Section title="Eligibility — likely eligible">

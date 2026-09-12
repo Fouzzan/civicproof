@@ -69,9 +69,11 @@ process.stdout.write(`Catalogue: ${DEMO_SCHEMES.length} schemes\n\n`);
 // --- Catalogue-wide invariants --------------------------------------------
 const slugs = DEMO_SCHEMES.map((s) => s.slug);
 check("every slug is unique", new Set(slugs).size === slugs.length);
+const categories = new Set(DEMO_SCHEMES.map((s) => s.category));
+check("all six categories are covered", categories.size === 6, `${categories.size}`);
 check(
-  "every category is represented exactly once",
-  new Set(DEMO_SCHEMES.map((s) => s.category)).size === DEMO_SCHEMES.length,
+  "every category holds at least one scheme",
+  [...categories].every((c) => DEMO_SCHEMES.some((s) => s.category === c)),
 );
 check("every scheme is flagged isDemo", DEMO_SCHEMES.every((s) => s.isDemo));
 check(
@@ -161,6 +163,23 @@ check(
   "application facts are only requested once eligibility facts are known",
   missingFactsFor(student, satisfyingFacts(student), "application").sort().join(",") ===
     "district,fullName",
+);
+
+// Housing: one answer, two opposite outcomes.
+const renting = { ownsHome: false, householdSize: 4, annualHouseholdIncome: 120_000 };
+const owning = { ownsHome: true, householdSize: 4, annualHouseholdIncome: 120_000 };
+const basicHousing = DEMO_SCHEMES.find((s) => s.slug === "basic-housing-assistance")!;
+const repairGrant = DEMO_SCHEMES.find((s) => s.slug === "home-repair-grant")!;
+
+check(
+  "a renter qualifies for Basic Housing Assistance, not Home Repair Grant",
+  checkEligibility(basicHousing, renting).outcome === "LIKELY_ELIGIBLE" &&
+    checkEligibility(repairGrant, renting).outcome === "NOT_ELIGIBLE",
+);
+check(
+  "an owner qualifies for Home Repair Grant, not Basic Housing Assistance",
+  checkEligibility(repairGrant, owning).outcome === "LIKELY_ELIGIBLE" &&
+    checkEligibility(basicHousing, owning).outcome === "NOT_ELIGIBLE",
 );
 
 process.stdout.write(

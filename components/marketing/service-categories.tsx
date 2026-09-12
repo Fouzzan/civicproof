@@ -19,8 +19,10 @@ import { Container } from "@/components/layout/container";
  * is exactly what the agent is built to start from. Nothing here is a mock —
  * clicking Education begins the same journey as typing it.
  *
- * Every category maps to one fictional demonstration scheme. The count is
- * stated honestly on the section rather than implied to be a full catalogue.
+ * Every category holds two fictional demonstration schemes that differ on a
+ * real criterion, so discovery has to choose rather than return the only thing
+ * it has. The count is stated honestly rather than implied to be a full
+ * national catalogue.
  */
 const CATEGORIES = [
   {
@@ -74,9 +76,8 @@ export function ServiceCategories() {
               What can Sahayak help with?
             </h2>
             <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-              Six areas of life, each with a demonstration service. Pick one, or
-              just describe your situation — you do not need to know which
-              applies.
+              Six areas of life, twelve demonstration services. Pick one, or just
+              describe your situation — you do not need to know which applies.
             </p>
           </div>
 

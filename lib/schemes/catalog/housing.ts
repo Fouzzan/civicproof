@@ -74,3 +74,63 @@ export const BASIC_HOUSING_ASSISTANCE: SchemeDefinition = {
     },
   ],
 };
+
+/**
+ * FICTIONAL demonstration scheme — Housing (owner-occupiers).
+ *
+ * The deliberate mirror of Basic Housing Assistance: that one requires you NOT
+ * to own your home, this one requires that you do. The same question routes to
+ * opposite services, which is the clearest demonstration that eligibility is
+ * decided by stored rules rather than by the model's impression of a situation.
+ */
+export const HOME_REPAIR_GRANT: SchemeDefinition = {
+  slug: "home-repair-grant",
+  name: "Home Repair Grant",
+  category: "HOUSING",
+  summary:
+    "A one-off grant towards urgent repairs for lower-income households who own their home.",
+  benefits: [
+    "A one-off grant for urgent structural repairs",
+    "A free condition assessment",
+  ],
+  targetGroups: ["Lower-income home owners", "Households needing urgent repairs"],
+  requiredDocuments: ["Proof of home ownership", "Proof of household income"],
+  sourceLabel: "Sahayak demonstration catalogue (fictional)",
+  isDemo: true,
+
+  facts: [
+    {
+      id: "ownsHome",
+      kind: "boolean",
+      label: "Owns their home",
+      question: "Do you own the home you live in?",
+      forEligibility: true,
+      forApplication: true,
+    },
+    ANNUAL_INCOME,
+    ...APPLICATION_FACTS,
+  ],
+
+  rules: [
+    {
+      id: "repair-owns-home",
+      kind: "boolean",
+      fact: "ownsHome",
+      expected: true,
+      label: "You own the home you live in",
+      failureHint:
+        "This demonstration scheme is for home owners. If you rent, Basic Housing Assistance may fit instead.",
+    },
+    {
+      id: "repair-income-ceiling",
+      kind: "number",
+      fact: "annualHouseholdIncome",
+      op: "lte",
+      value: 200000,
+      unit: "₹ per year",
+      label: "Your household income is ₹2,00,000 a year or less",
+      failureHint:
+        "This demonstration scheme is for households earning ₹2,00,000 or less per year.",
+    },
+  ],
+};

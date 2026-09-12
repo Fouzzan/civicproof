@@ -77,7 +77,7 @@ try {
   const afterRow = await prisma.conversation.findUnique({ where: { userId: USER } });
   check(
     "the stored fingerprint is refreshed to the current catalogue",
-    (afterRow?.catalogueFingerprint ?? "").split(",").length === 6,
+    (afterRow?.catalogueFingerprint ?? "").split(",").length === 12,
     afterRow?.catalogueFingerprint ?? "(null)",
   );
 

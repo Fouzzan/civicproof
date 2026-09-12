@@ -78,6 +78,7 @@ function deriveCards(outcomes: readonly ToolOutcome[]): readonly AgentCard[] {
             slug: scheme.slug,
             name: scheme.name,
             summary: scheme.summary,
+            category: scheme.category,
             isDemo: scheme.isDemo,
             criteria: scheme.criteria,
           })),

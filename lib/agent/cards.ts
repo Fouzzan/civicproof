@@ -12,6 +12,8 @@ export type SchemeView = {
   readonly slug: string;
   readonly name: string;
   readonly summary: string;
+  /** Citizen-service category, e.g. "EDUCATION". Used to group the catalogue. */
+  readonly category: string;
   readonly isDemo: boolean;
   /** Plain-language criteria, exactly as stored on the scheme. */
   readonly criteria: readonly string[];

@@ -79,7 +79,7 @@ try {
   const catalogue = matched.ok
     ? (matched.data as { supportedSchemes: { slug: string; category: string }[] }).supportedSchemes
     : [];
-  check("match_schemes returns the whole catalogue", catalogue.length === 6, `${catalogue.length} schemes`);
+  check("match_schemes returns the whole catalogue", catalogue.length === 12, `${catalogue.length} schemes`);
   check(
     "every category is discoverable",
     new Set(catalogue.map((s) => s.category)).size === 6,
