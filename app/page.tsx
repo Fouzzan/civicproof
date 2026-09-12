@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,9 @@ export default function HomePage() {
         </p>
 
         <div className="mt-8">
-          <Button size="lg" disabled>
-            Report an Incident
+          <Button size="lg" asChild>
+            <Link href="/report">Report an Incident</Link>
           </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            The reporting workflow is not built yet — this is the project shell.
-          </p>
         </div>
       </section>
 

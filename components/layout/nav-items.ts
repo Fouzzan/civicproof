@@ -22,7 +22,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Report an Incident",
     href: "/report",
     audience: "citizen",
-    enabled: false,
+    enabled: true,
   },
   {
     label: "My Cases",
