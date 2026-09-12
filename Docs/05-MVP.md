@@ -4,7 +4,9 @@
 
 The MVP demonstrates a focused Public Services & Civic Agents experience in which a citizen can move from describing their real-life situation to completing a **simulated government welfare application** without needing to understand a raw government form or complicated administrative procedure.
 
-The MVP will use **one demonstration welfare scheme** with **3–4 simple eligibility criteria**.
+The MVP uses **six fictional demonstration schemes**, one per citizen-service category, each with **3 simple eligibility criteria**.
+
+> **Updated.** This originally specified a single agricultural scheme. See `13-PRODUCT-DIRECTION.md` §3 for the current catalogue. Note that the engine did not change to support six categories — only the data did.
 
 The core experience is:
 
@@ -20,8 +22,8 @@ The MVP is intentionally narrow. Its purpose is to prove the end-to-end citizen 
 
 The MVP supports:
 
-- **One welfare scheme**
-- **3–4 simple eligibility criteria**
+- **Six welfare schemes** — one each for Education, Employment, Senior Citizens, Agriculture, Housing and Accessibility
+- **3 simple eligibility criteria** per scheme
 - Eligibility criteria that can be expressed clearly and checked using information provided by the citizen.
 
 Possible criterion types include:

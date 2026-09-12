@@ -77,9 +77,24 @@ export async function getOrCreateDraft(
   return toRecord(created);
 }
 
-export async function getDraft(userId: string): Promise<ApplicationRecord | null> {
+/**
+ * The citizen's in-progress draft, optionally for one specific scheme.
+ *
+ * The `schemeSlug` filter matters now that the catalogue spans six categories:
+ * a citizen may legitimately have a draft for more than one scheme, and
+ * "their most recent draft" is then the wrong answer to "their draft for
+ * Housing". Callers acting on a named scheme must pass it.
+ */
+export async function getDraft(
+  userId: string,
+  schemeSlug?: string,
+): Promise<ApplicationRecord | null> {
   const row = await prisma.application.findFirst({
-    where: { userId, status: ApplicationStatus.DRAFT },
+    where: {
+      userId,
+      status: ApplicationStatus.DRAFT,
+      ...(schemeSlug ? { scheme: { slug: schemeSlug } } : {}),
+    },
     include: { scheme: true },
     orderBy: { createdAt: "desc" },
   });

@@ -49,7 +49,16 @@ export async function POST(request: Request) {
 
     const turn = await runAgentTurn(user.id, parsed.data.message);
 
-    return NextResponse.json({ message: turn.message, cards: turn.cards });
+    // `debug` carries the provider's actual failure reason and is forwarded
+    // only outside production, where it lands in the browser's network tab.
+    // The citizen-facing message and cards are identical either way.
+    return NextResponse.json({
+      message: turn.message,
+      cards: turn.cards,
+      ...(process.env.NODE_ENV !== "production" && turn.debug
+        ? { debug: turn.debug }
+        : {}),
+    });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.publicMessage }, { status: error.status });

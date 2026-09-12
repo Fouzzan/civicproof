@@ -67,9 +67,11 @@ export async function runFormFiller(
       return toolError("SCHEME_NOT_FOUND", `"${input.schemeSlug}" is not a supported scheme.`);
     }
 
-    const draft = await getDraft(context.userId);
+    // Scoped to this scheme: with six schemes in the catalogue, "the citizen's
+    // most recent draft" may belong to a different one entirely.
+    const draft = await getDraft(context.userId, scheme.slug);
 
-    if (!draft || draft.schemeSlug !== scheme.slug) {
+    if (!draft) {
       return toolError(
         "NO_APPLICATION",
         "There is no draft for this scheme yet. Run the eligibility check first.",

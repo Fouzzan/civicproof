@@ -66,7 +66,7 @@ try {
 
   // --- 1. Natural-language situation -------------------------------------
   const step1 = await say(
-    "I am a farmer and my income is low. I want to know if there is any government support I can apply for.",
+    "I'm 22, studying in college, and my family income is low.",
     "STEP 1 — describes situation",
   );
   check(
@@ -79,7 +79,7 @@ try {
 
   // --- 2. Supplies the eligibility facts ----------------------------------
   const step2 = await say(
-    "I am 62 years old. My household earns about 90,000 rupees a year. I farm about 1.2 hectares. Yes, I live in this state.",
+    "Yes I am a full-time student. My family earns about 90,000 rupees a year.",
     "STEP 2 — supplies facts",
   );
   const eligibility = cardOf(step2.cards, "eligibility") as
@@ -92,7 +92,7 @@ try {
     eligibility?.eligibility.outcome,
   );
   check("scheme is labelled a demo", eligibility?.eligibility.isDemo === true);
-  check("all four criteria are shown", eligibility?.eligibility.criteria.length === 4);
+  check("all three criteria are shown", eligibility?.eligibility.criteria.length === 3);
 
   // --- 3. Application is prepared ----------------------------------------
   let step3 = await say(
@@ -104,7 +104,7 @@ try {
   };
   let application = cardOf(step3.cards, "application") as AppCard | undefined;
   check("application card is shown", Boolean(application));
-  check("all six fields are present", application?.application.fields.length === 6);
+  check("all five fields are present", application?.application.fields.length === 5);
   check("NOTHING was submitted while preparing", !cardOf(step3.cards, "submission"));
 
   // One clarifying question is legitimate conversation, not a failure. What
@@ -135,13 +135,13 @@ try {
     },
   });
   const schemeRow = await prisma.scheme.findFirst({
-    where: { slug: "demo-farmer-income-support" },
+    where: { slug: "student-education-assistance" },
   });
   const partial = await prisma.application.create({
     data: {
       userId: "verify-journey-partial",
       schemeId: schemeRow?.id ?? "",
-      collectedFacts: { age: 62, annualHouseholdIncome: 90000, landHectares: 1.2, isStateResident: true },
+      collectedFacts: { isStudent: true, age: 22, annualHouseholdIncome: 90000 },
       applicationData: {},
     },
   });

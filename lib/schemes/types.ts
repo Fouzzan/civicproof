@@ -77,10 +77,50 @@ export const eligibilityRuleSchema = z.discriminatedUnion("kind", [
 
 export type EligibilityRule = z.infer<typeof eligibilityRuleSchema>;
 
+/**
+ * Citizen-service categories.
+ *
+ * A closed set rather than free text: the dashboard browses by category, and a
+ * typo would silently create an eighth category nobody can find.
+ */
+export const schemeCategorySchema = z.enum([
+  "EDUCATION",
+  "EMPLOYMENT",
+  "SENIOR_CITIZENS",
+  "AGRICULTURE",
+  "HOUSING",
+  "ACCESSIBILITY",
+]);
+
+export type SchemeCategory = z.infer<typeof schemeCategorySchema>;
+
+export const CATEGORY_LABEL: Record<SchemeCategory, string> = {
+  EDUCATION: "Education",
+  EMPLOYMENT: "Employment",
+  SENIOR_CITIZENS: "Senior Citizens",
+  AGRICULTURE: "Agriculture",
+  HOUSING: "Housing",
+  ACCESSIBILITY: "Accessibility",
+};
+
 export const schemeDefinitionSchema = z.object({
   slug: z.string().min(1),
   name: z.string().min(1),
   summary: z.string().min(1),
+  category: schemeCategorySchema,
+  /** What the citizen actually receives, in plain words. */
+  benefits: z.array(z.string().min(1)).min(1),
+  /** Who this is for, for display and discovery context — never for eligibility. */
+  targetGroups: z.array(z.string().min(1)).min(1),
+  /**
+   * What a real scheme of this kind would ask you to produce.
+   *
+   * INFORMATIONAL ONLY. Sahayak collects no documents, and the UI says so. The
+   * list exists to set expectations honestly, not to gather anything.
+   */
+  requiredDocuments: z.array(z.string().min(1)),
+  /** Where the demo rules came from. Always a demonstration label here. */
+  sourceLabel: z.string().min(1),
   facts: z.array(schemeFactSchema).min(1),
   rules: z.array(eligibilityRuleSchema).min(1),
   isDemo: z.boolean(),

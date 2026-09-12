@@ -36,6 +36,16 @@ export type AgentTurn = {
   readonly message: string;
   readonly cards: readonly AgentCard[];
   readonly iterations: number;
+  /**
+   * The underlying failure reason, for developers only.
+   *
+   * The citizen-facing message is deliberately generic, which left an
+   * intermittent provider fault undiagnosable: the HTTP status was known here
+   * and then discarded, so two separate investigations had nothing to work
+   * from. This carries it as far as the route, which forwards it ONLY outside
+   * production.
+   */
+  readonly debug?: string;
 };
 
 type ToolOutcome = { readonly name: string; readonly result: ToolResult<unknown> };
@@ -172,14 +182,21 @@ function messageFrom(error: unknown): string {
 }
 
 export async function runAgentTurn(userId: string, userMessage: string): Promise<AgentTurn> {
-  const history = await loadTranscript(userId);
-  const messages: AgentMessage[] = [...history, { role: "user", content: userMessage }];
-
+  const messages: AgentMessage[] = [];
   const outcomes: ToolOutcome[] = [];
   let finalText = "";
   let iterations = 0;
 
   try {
+    // Inside the try deliberately. Loading the transcript touches the database,
+    // and when it threw from outside this block the exception escaped to the
+    // route's generic 500 — the citizen got "Sahayak is temporarily
+    // unavailable" with no card, no explanation and nothing in the response to
+    // diagnose from. Every failure in this function should degrade to an error
+    // card, not a blank 500.
+    const history = await loadTranscript(userId);
+    messages.push(...history, { role: "user", content: userMessage });
+
     for (let step = 0; step < MAX_ITERATIONS; step += 1) {
       iterations = step + 1;
 
@@ -219,6 +236,12 @@ export async function runAgentTurn(userId: string, userMessage: string): Promise
       message: text,
       cards: [{ kind: "error", message: text }, ...deriveCards(outcomes)],
       iterations,
+      debug:
+        error instanceof AiProviderError
+          ? `${error.reason}: ${error.message}`
+          : `${error instanceof Error ? error.name : "unknown"}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
     };
   }
 

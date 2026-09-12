@@ -253,12 +253,44 @@ enum ApplicationStatus {
 model Scheme {
   id String @id @default(cuid())
 
-  /// Stable identifier used by the tools, e.g. "demo-farmer-income-support".
+  /// Stable identifier used by the tools, e.g. "student-education-assistance".
   /// Slug rather than cuid so tool arguments are readable and debuggable.
   slug String @unique
 
   name    String
   summary String
+
+  /// Citizen-service category, e.g. "EDUCATION". A String rather than a Prisma
+  /// enum, matching how incidentType is handled above: the closed set is
+  /// enforced by Zod at the read boundary, so adding a category is a data
+  /// change rather than a migration.
+  ///
+  /// The default exists only so this column could be added to a table that
+  /// already had a row. Every scheme the seed writes sets it explicitly.
+  category String @default("AGRICULTURE")
+
+  /// What the citizen receives, as plain-language strings.
+  benefits Json @default("[]")
+
+  /// Who the scheme is aimed at. Display and discovery context ONLY — never an
+  /// input to eligibility, which reads eligibilityRules and nothing else.
+  targetGroups Json @default("[]")
+
+  /// What a real scheme of this kind would ask you to produce.
+  /// INFORMATIONAL ONLY: Sahayak collects no documents, and the UI says so.
+  requiredDocuments Json @default("[]")
+
+  /// Provenance of the stored rules, shown to the citizen.
+  sourceLabel String @default("Sahayak demonstration catalogue (fictional)")
+
+  /// Incremented only when a human approves a proposed change. Nothing the
+  /// model does can move it.
+  version Int @default(1)
+
+  /// When these rules were last confirmed against their source. Null means
+  /// never verified, which the UI must show as such rather than implying
+  /// freshness.
+  lastVerified DateTime?
 
   /// Controlled eligibility criteria, evaluated deterministically by
   /// lib/eligibility. Shape is validated on read — never trusted blindly.
@@ -336,6 +368,19 @@ model Conversation {
   user   User   @relation("ConversationOwner", fields: [userId], references: [id], onDelete: Restrict)
 
   messages Json
+
+  /// Which catalogue this transcript was built against.
+  ///
+  /// A transcript carries the tool results it has already seen, including the
+  /// list of schemes discovery returned at the time. When the catalogue
+  /// changes, those cached results become false — and the model will keep
+  /// answering from them rather than calling the tool again. Storing the
+  /// composition here lets a stale transcript be discarded instead of quietly
+  /// contradicting the database.
+  ///
+  /// Null on transcripts written before this column existed, which are treated
+  /// as stale for exactly that reason.
+  catalogueFingerprint String?
 
   /// The draft the conversation is currently working on, if any.
   activeApplicationId String?

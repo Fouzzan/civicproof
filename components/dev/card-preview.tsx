@@ -16,16 +16,15 @@ import type { ApplicationView, EligibilityView, SchemeView } from "@/lib/agent/c
  * failure. The data here is obviously fake and never leaves this page.
  */
 const SCHEME: SchemeView = {
-  slug: "demo-farmer-income-support",
-  name: "Demo Farmer Income Support",
+  slug: "student-education-assistance",
+  name: "Student Education Assistance",
   summary:
-    "A demonstration scheme offering income support to small-scale farmers in low-income households.",
+    "Support with course and living costs for students from lower-income households.",
   isDemo: true,
   criteria: [
-    "You are 18 or older",
-    "Your household income is ₹2,00,000 a year or less",
-    "You cultivate between 0.1 and 2 hectares of farmland",
-    "You live in the state where you are applying",
+    "You are currently studying",
+    "You are between 17 and 30",
+    "Your household income is ₹3,00,000 a year or less",
   ],
 };
 
@@ -34,22 +33,16 @@ const eligible: EligibilityView = {
   schemeName: SCHEME.name,
   isDemo: true,
   criteria: [
-    { id: "minimum-age", label: "You are 18 or older", status: "PASSED", failureHint: null },
+    { id: "is-student", label: "You are currently studying", status: "PASSED", failureHint: null },
     {
-      id: "income-ceiling",
-      label: "Your household income is ₹2,00,000 a year or less",
+      id: "student-age-range",
+      label: "You are between 17 and 30",
       status: "PASSED",
       failureHint: null,
     },
     {
-      id: "smallholding",
-      label: "You cultivate between 0.1 and 2 hectares of farmland",
-      status: "PASSED",
-      failureHint: null,
-    },
-    {
-      id: "state-residency",
-      label: "You live in the state where you are applying",
+      id: "student-income-ceiling",
+      label: "Your household income is ₹3,00,000 a year or less",
       status: "PASSED",
       failureHint: null,
     },
@@ -61,15 +54,14 @@ const ineligible: EligibilityView = {
   outcome: "NOT_ELIGIBLE",
   criteria: [
     eligible.criteria[0]!,
+    eligible.criteria[1]!,
     {
-      id: "income-ceiling",
-      label: "Your household income is ₹2,00,000 a year or less",
+      id: "student-income-ceiling",
+      label: "Your household income is ₹3,00,000 a year or less",
       status: "FAILED",
       failureHint:
-        "This demonstration scheme is for households earning ₹2,00,000 or less per year.",
+        "This demonstration scheme is for households earning ₹3,00,000 or less per year.",
     },
-    eligible.criteria[2]!,
-    eligible.criteria[3]!,
   ],
 };
 
@@ -78,16 +70,15 @@ const incomplete: EligibilityView = {
   outcome: "MORE_INFORMATION_NEEDED",
   criteria: [
     eligible.criteria[0]!,
-    eligible.criteria[1]!,
     {
-      id: "smallholding",
-      label: "You cultivate between 0.1 and 2 hectares of farmland",
+      id: "student-age-range",
+      label: "You are between 17 and 30",
       status: "UNKNOWN",
       failureHint: null,
     },
     {
-      id: "state-residency",
-      label: "You live in the state where you are applying",
+      id: "student-income-ceiling",
+      label: "Your household income is ₹3,00,000 a year or less",
       status: "UNKNOWN",
       failureHint: null,
     },
@@ -101,7 +92,8 @@ const readyApplication: ApplicationView = {
   readyToConfirm: true,
   fields: [
     { id: "fullName", label: "Full name", kind: "text", value: "A. Kumar" },
-    { id: "age", label: "Age", kind: "number", unit: "years", value: 62 },
+    { id: "isStudent", label: "Currently studying", kind: "boolean", value: true },
+    { id: "age", label: "Age", kind: "number", unit: "years", value: 22 },
     {
       id: "annualHouseholdIncome",
       label: "Annual household income",
@@ -109,14 +101,6 @@ const readyApplication: ApplicationView = {
       unit: "₹ per year",
       value: 90000,
     },
-    {
-      id: "landHectares",
-      label: "Farmland cultivated",
-      kind: "number",
-      unit: "hectares",
-      value: 1.2,
-    },
-    { id: "isStateResident", label: "State residency", kind: "boolean", value: true },
     { id: "district", label: "District", kind: "text", value: "Malappuram" },
   ],
 };

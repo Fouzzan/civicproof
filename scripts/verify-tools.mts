@@ -75,29 +75,33 @@ try {
   );
 
   // --- SchemeMatcher ------------------------------------------------------
-  const matched = await call("match_schemes", { situationSummary: "I am a farmer with low income." });
+  const matched = await call("match_schemes", { situationSummary: "I am a student with low family income." });
+  const catalogue = matched.ok
+    ? (matched.data as { supportedSchemes: { slug: string; category: string }[] }).supportedSchemes
+    : [];
+  check("match_schemes returns the whole catalogue", catalogue.length === 6, `${catalogue.length} schemes`);
   check(
-    "match_schemes returns the supported scheme",
-    matched.ok && (matched.data as { supportedSchemes: unknown[] }).supportedSchemes.length === 1,
+    "every category is discoverable",
+    new Set(catalogue.map((s) => s.category)).size === 6,
   );
 
   // --- EligibilityChecker: partial ---------------------------------------
   const partial = await call("check_eligibility", {
-    schemeSlug: "demo-farmer-income-support",
-    facts: { age: 62 },
+    schemeSlug: "student-education-assistance",
+    facts: { age: 22 },
   });
   const partialResult = partial.ok
     ? (partial.data as { result: { outcome: string }; missing: unknown[] })
     : null;
   check(
     "partial facts -> MORE_INFORMATION_NEEDED with questions to ask",
-    partialResult?.result.outcome === "MORE_INFORMATION_NEEDED" && partialResult.missing.length === 3,
+    partialResult?.result.outcome === "MORE_INFORMATION_NEEDED" && partialResult.missing.length === 2,
   );
 
   // --- Fact normalisation -------------------------------------------------
   const messy = await call("check_eligibility", {
-    schemeSlug: "demo-farmer-income-support",
-    facts: { annualHouseholdIncome: "₹90,000", isStateResident: "yes", landHectares: "1.2" },
+    schemeSlug: "student-education-assistance",
+    facts: { annualHouseholdIncome: "₹90,000", isStudent: "yes" },
   });
   check(
     'messy input ("₹90,000", "yes") normalises and completes the check',
@@ -105,7 +109,7 @@ try {
   );
 
   const junk = await call("check_eligibility", {
-    schemeSlug: "demo-farmer-income-support",
+    schemeSlug: "student-education-assistance",
     facts: { age: "not a number" },
   });
   check(
@@ -121,7 +125,7 @@ try {
   check("unknown scheme is refused", !bogusScheme.ok && bogusScheme.code === "SCHEME_NOT_FOUND");
 
   // --- FormFiller ---------------------------------------------------------
-  const formA = await call("prepare_application", { schemeSlug: "demo-farmer-income-support" });
+  const formA = await call("prepare_application", { schemeSlug: "student-education-assistance" });
   check(
     "prepare_application asks for name + district and is not ready",
     formA.ok &&
@@ -130,7 +134,7 @@ try {
   );
 
   const formB = await call("prepare_application", {
-    schemeSlug: "demo-farmer-income-support",
+    schemeSlug: "student-education-assistance",
     facts: { fullName: "A. Kumar", district: "Malappuram" },
   });
   const ready = formB.ok
@@ -211,8 +215,8 @@ try {
   const ineligible = await executeTool(
     "check_eligibility",
     JSON.stringify({
-      schemeSlug: "demo-farmer-income-support",
-      facts: { age: 62, annualHouseholdIncome: 900_000, landHectares: 1.2, isStateResident: true },
+      schemeSlug: "student-education-assistance",
+      facts: { isStudent: true, age: 22, annualHouseholdIncome: 900_000 },
     }),
     otherCtx,
   );
@@ -224,12 +228,53 @@ try {
 
   const blockedForm = await executeTool(
     "prepare_application",
-    JSON.stringify({ schemeSlug: "demo-farmer-income-support" }),
+    JSON.stringify({ schemeSlug: "student-education-assistance" }),
     otherCtx,
   );
   check(
     "ineligible citizen cannot have an application prepared",
     !blockedForm.ok && blockedForm.code === "NOT_ELIGIBLE",
+  );
+
+  // --- Multi-scheme draft scoping ----------------------------------------
+  // OTHER already has a student draft from the ineligible check above. Adding a
+  // housing draft means "their most recent draft" and "their housing draft" are
+  // different rows — which is exactly the confusion a six-scheme catalogue
+  // introduces and what the schemeSlug filter on getDraft exists to prevent.
+  await executeTool(
+    "check_eligibility",
+    JSON.stringify({
+      schemeSlug: "basic-housing-assistance",
+      facts: { ownsHome: false, householdSize: 4, annualHouseholdIncome: 120_000 },
+    }),
+    otherCtx,
+  );
+
+  const studentDraft = await getDraft(OTHER, "student-education-assistance");
+  const housingDraft = await getDraft(OTHER, "basic-housing-assistance");
+
+  check(
+    "a citizen can hold drafts in two schemes at once",
+    studentDraft !== null && housingDraft !== null && studentDraft.id !== housingDraft.id,
+  );
+  check(
+    "getDraft scoped by scheme returns the matching draft",
+    studentDraft?.schemeSlug === "student-education-assistance" &&
+      housingDraft?.schemeSlug === "basic-housing-assistance",
+  );
+
+  const housingForm = await executeTool(
+    "prepare_application",
+    JSON.stringify({
+      schemeSlug: "basic-housing-assistance",
+      facts: { fullName: "B. Nair", district: "Kozhikode" },
+    }),
+    otherCtx,
+  );
+  check(
+    "prepare_application works on the housing draft, not the student one",
+    housingForm.ok &&
+      (housingForm.data as { schemeSlug: string }).schemeSlug === "basic-housing-assistance",
   );
 
   // --- Malformed model output --------------------------------------------

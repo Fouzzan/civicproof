@@ -2,6 +2,7 @@ import { ApplicationStatus, Prisma } from "@prisma/client";
 
 import type { AgentMessage } from "@/lib/ai/provider";
 import { prisma } from "@/lib/db";
+import { getCatalogueFingerprint } from "@/lib/schemes/repository";
 
 /**
  * Server-side conversation state.
@@ -46,10 +47,37 @@ function trim(messages: readonly AgentMessage[]): readonly AgentMessage[] {
   return firstUser <= 0 ? tail.slice(Math.max(firstUser, 0)) : tail.slice(firstUser);
 }
 
+/**
+ * Load the transcript, discarding it if it predates the current catalogue.
+ *
+ * A transcript contains the tool results the model has already seen — including
+ * the list of services discovery returned at the time. If a scheme has since
+ * been added or retired, those results are now false, and the model will answer
+ * from them rather than calling the tool again. It will do so confidently,
+ * because as far as it can tell the question was already settled.
+ *
+ * That is exactly what happened when the catalogue went from one scheme to six:
+ * existing conversations kept insisting only the original scheme existed, while
+ * the database held all six. Dropping the transcript is the honest resolution —
+ * the citizen starts a fresh conversation, and their applications and tracking
+ * references are untouched because those live on Application, not here.
+ */
 export async function loadTranscript(userId: string): Promise<readonly AgentMessage[]> {
-  const row = await prisma.conversation.findUnique({ where: { userId } });
+  const [row, fingerprint] = await Promise.all([
+    prisma.conversation.findUnique({ where: { userId } }),
+    getCatalogueFingerprint(),
+  ]);
 
   if (!row || !Array.isArray(row.messages)) {
+    return [];
+  }
+
+  if (row.catalogueFingerprint !== fingerprint) {
+    await prisma.conversation.update({
+      where: { userId },
+      data: { messages: [], activeApplicationId: null, catalogueFingerprint: fingerprint },
+    });
+
     return [];
   }
 
@@ -61,11 +89,12 @@ export async function saveTranscript(
   messages: readonly AgentMessage[],
 ): Promise<void> {
   const bounded = trim(messages) as unknown as Prisma.InputJsonValue;
+  const fingerprint = await getCatalogueFingerprint();
 
   await prisma.conversation.upsert({
     where: { userId },
-    update: { messages: bounded },
-    create: { userId, messages: bounded },
+    update: { messages: bounded, catalogueFingerprint: fingerprint },
+    create: { userId, messages: bounded, catalogueFingerprint: fingerprint },
   });
 }
 
@@ -80,14 +109,16 @@ export async function saveTranscript(
  * stop resolving.
  */
 export async function resetConversation(userId: string): Promise<void> {
+  const fingerprint = await getCatalogueFingerprint();
+
   await prisma.$transaction([
     prisma.application.deleteMany({
       where: { userId, status: ApplicationStatus.DRAFT },
     }),
     prisma.conversation.upsert({
       where: { userId },
-      update: { messages: [], activeApplicationId: null },
-      create: { userId, messages: [] },
+      update: { messages: [], activeApplicationId: null, catalogueFingerprint: fingerprint },
+      create: { userId, messages: [], catalogueFingerprint: fingerprint },
     }),
   ]);
 }

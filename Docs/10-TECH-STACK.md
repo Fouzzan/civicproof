@@ -1,5 +1,9 @@
 # 10 — Technology Stack
 
+> **Superseded on two points.** This document selects Claude as the AI provider and SQLite as the database. **The implementation uses Google Gemini and Prisma/Neon PostgreSQL**, and those are the intended choices — Gemini because there is no budget for a paid AI API, and Prisma/Neon because it already worked and migrating it would have spent hackathon time for no product gain.
+>
+> Read every "Claude" and "SQLite" reference below as historical. `13-PRODUCT-DIRECTION.md` §4 records what actually runs.
+
 This document validates the proposed technology stack against the architecture and MVP decisions in `01-PROBLEM.md` through `09-AI-DESIGN.md`.
 
 The guiding principle is:
@@ -16,8 +20,8 @@ The proposed stack is intentionally simple: one Next.js application, one local d
 |---|---|
 | Frontend | **Next.js + TypeScript + Tailwind CSS** |
 | Backend | **Next.js API Routes** |
-| Database | **SQLite + better-sqlite3** |
-| AI / Agent | **Claude API with tool use** |
+| Database | ~~SQLite + better-sqlite3~~ → **Prisma + Neon PostgreSQL** (as built) |
+| AI / Agent | ~~Claude API~~ → **Gemini API with tool use** (as built) |
 | Hosting | **Local-first; Vercel if time allows** |
 
 ## Overall validation

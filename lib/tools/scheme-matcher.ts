@@ -30,6 +30,10 @@ export type MatchedScheme = {
   readonly slug: string;
   readonly name: string;
   readonly summary: string;
+  /** Citizen-service category, e.g. "EDUCATION". */
+  readonly category: string;
+  /** What the citizen actually receives. */
+  readonly benefits: readonly string[];
   readonly isDemo: boolean;
   /** Plain-language criteria, so the model can describe the scheme accurately. */
   readonly criteria: readonly string[];
@@ -73,6 +77,8 @@ export async function runSchemeMatcher(): Promise<ToolResult<SchemeMatcherOutput
         slug: scheme.slug,
         name: scheme.name,
         summary: scheme.summary,
+        category: scheme.category,
+        benefits: scheme.benefits,
         isDemo: scheme.isDemo,
         criteria: scheme.rules.map((rule) => rule.label),
         factsNeeded: scheme.facts.map((fact) => ({
