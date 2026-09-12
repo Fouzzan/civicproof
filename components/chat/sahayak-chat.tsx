@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { cn } from "cn";
 
+import { AgentActivity, deriveStages } from "@/components/chat/agent-activity";
 import { ApplicationCard } from "@/components/cards/application-card";
 import { EligibilityCard } from "@/components/cards/eligibility-card";
 import { ErrorCard } from "@/components/cards/error-card";
@@ -95,13 +96,19 @@ function Thinking({ label }: { readonly label: string }) {
   );
 }
 
-export function SahayakChat() {
+export function SahayakChat({
+  initialMessage,
+}: {
+  /** A situation typed on the landing page, sent once on arrival. */
+  readonly initialMessage?: string;
+}) {
   const [entries, setEntries] = useState<readonly Entry[]>([]);
   const [draft, setDraft] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState(THINKING_DEFAULT);
 
   const endRef = useRef<HTMLDivElement>(null);
+  const openingSent = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -184,6 +191,18 @@ export function SahayakChat() {
     [isBusy],
   );
 
+  // Send the situation carried over from the landing page, exactly once. The
+  // ref guard matters: React runs effects twice in development, and a second
+  // send would post the citizen's opening line twice.
+  useEffect(() => {
+    if (!initialMessage || openingSent.current) {
+      return;
+    }
+
+    openingSent.current = true;
+    void send(initialMessage);
+  }, [initialMessage, send]);
+
   /**
    * Confirmation has already been recorded by the card before this runs, so
    * this turn only asks the agent to act on it. The agent still cannot submit
@@ -222,6 +241,11 @@ export function SahayakChat() {
     liveApplicationId?.kind === "application"
       ? liveApplicationId.application.applicationId
       : null;
+
+  // Every card the conversation has produced, so the activity panel reflects
+  // the whole journey rather than only the most recent turn.
+  const allCards = entries.flatMap((entry) => (entry.kind === "agent" ? entry.cards : []));
+  const stages = deriveStages(allCards, entries.length > 0, isBusy);
 
   /**
    * The newest card of each kind, by position in the transcript.
@@ -296,6 +320,12 @@ export function SahayakChat() {
     // means hunting for the input.
     // 100dvh rather than 100vh so mobile browser chrome does not crop it.
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
+      {entries.length > 0 ? (
+        <div className="shrink-0 pt-4">
+          <AgentActivity stages={stages} compactOnMobile />
+        </div>
+      ) : null}
+
       <div className="flex-1 space-y-6 overflow-y-auto py-6">
         {entries.length === 0 && !isBusy ? (
           <ChatWelcome onPick={(text) => void send(text)} disabled={isBusy} />

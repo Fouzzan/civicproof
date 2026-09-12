@@ -14,16 +14,16 @@ export function FinalCta() {
               id="get-started"
               className="text-2xl font-semibold tracking-tight sm:text-3xl"
             >
-              Have something that needs attention?
+              Tell Sahayak what you need.
             </h2>
             <p className="mt-3 text-lg text-primary-foreground/80">
-              Create a case in minutes.
+              Start from your situation. Sahayak works out the rest.
             </p>
           </div>
 
           <Button asChild size="xl" variant="secondary" className="shrink-0 self-start">
-            <Link href="/report">
-              Report an Issue
+            <Link href="/chat">
+              Start with Sahayak
               <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
