@@ -101,7 +101,7 @@ export function StepEvidence({ evidence, onAdd, onRemove, error }: StepEvidenceP
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatFileSize(item.file.size)} &middot; selected, not yet uploaded
+                  {formatFileSize(item.file.size)} &middot; uploads when you create the case
                 </p>
               </div>
               <Button

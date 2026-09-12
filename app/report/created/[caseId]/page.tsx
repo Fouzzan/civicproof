@@ -1,4 +1,4 @@
-import { CheckCircle2, Info, Lock } from "lucide-react";
+import { CheckCircle2, Info, Lock, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -46,7 +46,16 @@ export default async function CaseCreatedPage({
   // that a case exists (Docs/13-SECURITY.md §3).
   const found = await prisma.case.findFirst({
     where: { caseId, reporterId: user.id },
-    include: { timeline: { orderBy: { createdAt: "asc" } } },
+    include: {
+      timeline: { orderBy: { createdAt: "asc" } },
+      // Metadata only. storageReference is never rendered: the blob URL stays
+      // server-side, and any future viewer must proxy bytes behind an
+      // authorization check (Docs/13-SECURITY.md §10).
+      evidence: {
+        orderBy: { createdAt: "asc" },
+        select: { id: true, fileName: true, createdAt: true },
+      },
+    },
   });
 
   if (!found) {
@@ -112,6 +121,31 @@ export default async function CaseCreatedPage({
         </dl>
       </section>
 
+      <section aria-labelledby="case-evidence" className="mt-6">
+        <h2 id="case-evidence" className="text-sm font-semibold tracking-wide uppercase">
+          Evidence
+        </h2>
+        {found.evidence.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No photos were attached to this report.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-1">
+            {found.evidence.map((item) => (
+              <li key={item.id} className="flex items-center gap-2 text-sm">
+                <Paperclip aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{item.fileName}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Attached files are private to you and authorised case handlers.
+          CivicProof does not treat a photo as proof simply because it was
+          uploaded.
+        </p>
+      </section>
+
       <section aria-labelledby="case-timeline" className="mt-6">
         <h2 id="case-timeline" className="text-sm font-semibold tracking-wide uppercase">
           What has happened so far
@@ -143,7 +177,6 @@ export default async function CaseCreatedPage({
         <AlertDescription>
           Your report exists in CivicProof only. No complaint has been generated
           and nothing has been submitted to a government or authority system.
-          Photos you selected were not uploaded and are no longer attached.
         </AlertDescription>
       </Alert>
 

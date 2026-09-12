@@ -32,6 +32,13 @@ import {
 
 const STEPS = ["Type", "Details", "Evidence", "Review"] as const;
 
+/**
+ * The submit sequence is two server round-trips, and the second one may fail
+ * without invalidating the first. The phase makes that explicit so a failed
+ * photo upload can never be mistaken for a failed case creation.
+ */
+type SubmitPhase = "idle" | "creating" | "uploading" | "evidence-failed";
+
 const EMPTY_DETAILS: IncidentDetailsValues = {
   description: "",
   date: "",
@@ -54,8 +61,10 @@ export function ReportWizard() {
   const [evidence, setEvidence] = useState<readonly SelectedEvidence[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [evidenceError, setEvidenceError] = useState<string | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phase, setPhase] = useState<SubmitPhase>("idle");
   const [submitError, setSubmitError] = useState<string | undefined>();
+  const [createdCaseId, setCreatedCaseId] = useState<string | undefined>();
+  const [failedEvidence, setFailedEvidence] = useState<readonly SelectedEvidence[]>([]);
 
   const router = useRouter();
 
@@ -139,15 +148,66 @@ export function ReportWizard() {
     setEvidenceError(undefined);
   }, []);
 
+  /**
+   * Upload each selected image to the case that now exists. Returns the items
+   * that did not make it, so the caller can offer a retry.
+   */
+  async function uploadEvidence(
+    caseId: string,
+    items: readonly SelectedEvidence[],
+  ): Promise<readonly SelectedEvidence[]> {
+    const failed: SelectedEvidence[] = [];
+
+    for (const item of items) {
+      try {
+        const form = new FormData();
+        form.append("file", item.file);
+
+        const response = await fetch(`/api/cases/${caseId}/evidence`, {
+          method: "POST",
+          body: form,
+        });
+
+        if (!response.ok) {
+          failed.push(item);
+        }
+      } catch {
+        failed.push(item);
+      }
+    }
+
+    return failed;
+  }
+
+  async function retryEvidenceUpload() {
+    if (!createdCaseId || failedEvidence.length === 0) {
+      return;
+    }
+
+    setPhase("uploading");
+    setSubmitError(undefined);
+
+    const stillFailed = await uploadEvidence(createdCaseId, failedEvidence);
+
+    if (stillFailed.length > 0) {
+      setFailedEvidence(stillFailed);
+      setPhase("evidence-failed");
+      return;
+    }
+
+    setFailedEvidence([]);
+    router.push(`/report/created/${createdCaseId}`);
+  }
+
   async function submitReport() {
     // Guard against a double-click landing two cases in the database. The
     // server also rate-limits, but the first line of defence is not sending the
     // second request at all.
-    if (isSubmitting) {
+    if (phase !== "idle") {
       return;
     }
 
-    setIsSubmitting(true);
+    setPhase("creating");
     setSubmitError(undefined);
 
     try {
@@ -175,7 +235,7 @@ export function ReportWizard() {
             : "We couldn't create your report. Please try again.";
 
         setSubmitError(message);
-        setIsSubmitting(false);
+        setPhase("idle");
         return;
       }
 
@@ -185,9 +245,26 @@ export function ReportWizard() {
           : undefined;
 
       if (!caseId) {
-        setSubmitError("The report was created but no reference came back. Please check your cases.");
-        setIsSubmitting(false);
+        setSubmitError(
+          "Your report was created but no reference came back. Please check your cases before reporting again.",
+        );
+        setPhase("idle");
         return;
+      }
+
+      setCreatedCaseId(caseId);
+
+      // The case exists from here on. A photo failure must never undo it.
+      if (evidence.length > 0) {
+        setPhase("uploading");
+
+        const failed = await uploadEvidence(caseId, evidence);
+
+        if (failed.length > 0) {
+          setFailedEvidence(failed);
+          setPhase("evidence-failed");
+          return;
+        }
       }
 
       // Stay disabled through navigation so the button cannot fire twice.
@@ -196,7 +273,7 @@ export function ReportWizard() {
       setSubmitError(
         "We couldn't reach CivicProof. Check your connection and try again — your answers are still here.",
       );
-      setIsSubmitting(false);
+      setPhase("idle");
     }
   }
 
@@ -229,6 +306,7 @@ export function ReportWizard() {
   }
 
   const isLastStep = step === STEPS.length - 1;
+  const isBusy = phase === "creating" || phase === "uploading";
 
   return (
     <div className="space-y-6">
@@ -273,6 +351,34 @@ export function ReportWizard() {
         <StepReview incidentType={incidentType} details={details} evidence={evidence} />
       ) : null}
 
+      {phase === "evidence-failed" && createdCaseId ? (
+        <Alert>
+          <AlertTitle>Your case was created &mdash; but the photos were not attached</AlertTitle>
+          <AlertDescription>
+            <span className="block">
+              Case <span className="font-mono font-medium">{createdCaseId}</span> is
+              saved. {failedEvidence.length} photo
+              {failedEvidence.length === 1 ? "" : "s"} could not be uploaded. Your
+              case is safe either way &mdash; you can try the upload again or carry
+              on without the photos.
+            </span>
+            <span className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <Button type="button" size="sm" onClick={retryEvidenceUpload}>
+                Try uploading again
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => router.push(`/report/created/${createdCaseId}`)}
+              >
+                Continue without photos
+              </Button>
+            </span>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {submitError ? (
         <Alert variant="destructive">
           <AlertTitle>We couldn&apos;t create your report</AlertTitle>
@@ -282,13 +388,13 @@ export function ReportWizard() {
         </Alert>
       ) : null}
 
-      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-between">
+      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-between" hidden={phase === "evidence-failed"}>
         <Button
           type="button"
           variant="ghost"
           size="lg"
           onClick={goBack}
-          disabled={step === 0 || isSubmitting}
+          disabled={step === 0 || isBusy}
         >
           <ArrowLeft aria-hidden="true" />
           Back
@@ -296,18 +402,18 @@ export function ReportWizard() {
 
         {isLastStep ? (
           <div className="space-y-2 sm:text-right">
-            <Button type="button" size="lg" onClick={submitReport} disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="button" size="lg" onClick={submitReport} disabled={isBusy}>
+              {isBusy ? (
                 <>
                   <Loader2 aria-hidden="true" className="animate-spin" />
-                  Creating your case&hellip;
+                  {phase === "uploading" ? "Uploading photos…" : "Creating your case…"}
                 </>
               ) : (
                 "Create my case"
               )}
             </Button>
             <p className="text-xs text-muted-foreground">
-              This saves your report in CivicProof. It is not sent to any authority.
+              This saves your report and any photos in CivicProof. It is not sent to any authority.
             </p>
           </div>
         ) : (

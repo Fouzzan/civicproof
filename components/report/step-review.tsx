@@ -94,7 +94,7 @@ export function StepReview({ incidentType, details, evidence }: StepReviewProps)
                   <li key={item.id}>
                     {item.file.name}{" "}
                     <span className="text-muted-foreground">
-                      ({formatFileSize(item.file.size)}) &middot; selected, not yet uploaded
+                      ({formatFileSize(item.file.size)})
                     </span>
                   </li>
                 ))}
@@ -123,9 +123,8 @@ export function StepReview({ incidentType, details, evidence }: StepReviewProps)
         <AlertTitle>What happens when you continue</AlertTitle>
         <AlertDescription>
           Your report is saved to CivicProof and given a case reference you can
-          keep. It is not sent to any authority, and no complaint has been
-          generated. Any photos you selected stay on your device for now — they
-          are not uploaded with this report.
+          keep, and any photos you selected are uploaded and attached to it.
+          Nothing is sent to any authority, and no complaint has been generated.
         </AlertDescription>
       </Alert>
     </div>
