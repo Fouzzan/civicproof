@@ -120,10 +120,12 @@ export function StepReview({ incidentType, details, evidence }: StepReviewProps)
       </section>
 
       <Alert>
-        <AlertTitle>Nothing has been saved yet</AlertTitle>
+        <AlertTitle>What happens when you continue</AlertTitle>
         <AlertDescription>
-          This report has not been created, stored, or sent to any authority.
-          Saving arrives in the next implementation task.
+          Your report is saved to CivicProof and given a case reference you can
+          keep. It is not sent to any authority, and no complaint has been
+          generated. Any photos you selected stay on your device for now — they
+          are not uploaded with this report.
         </AlertDescription>
       </Alert>
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 
 import {
   ImmediateSafetyGuidance,
@@ -12,6 +13,7 @@ import { StepIncidentDetails, type IncidentDetailsValues } from "@/components/re
 import { StepIncidentType } from "@/components/report/step-incident-type";
 import { StepIndicator } from "@/components/report/step-indicator";
 import { StepReview } from "@/components/report/step-review";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   MAX_FILE_COUNT,
@@ -52,6 +54,10 @@ export function ReportWizard() {
   const [evidence, setEvidence] = useState<readonly SelectedEvidence[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [evidenceError, setEvidenceError] = useState<string | undefined>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
+
+  const router = useRouter();
 
   const isSensitive = isSensitiveIncidentType(incidentType);
 
@@ -133,6 +139,67 @@ export function ReportWizard() {
     setEvidenceError(undefined);
   }, []);
 
+  async function submitReport() {
+    // Guard against a double-click landing two cases in the database. The
+    // server also rate-limits, but the first line of defence is not sending the
+    // second request at all.
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(undefined);
+
+    try {
+      const response = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Only the reporter's own answers are sent. Sensitivity, status,
+        // reporter and timeline actor are all derived on the server.
+        body: JSON.stringify({
+          incidentType,
+          description: details.description,
+          date: details.date,
+          time: details.time,
+          location: details.location,
+          additionalContext: details.additionalContext,
+        }),
+      });
+
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && "error" in payload
+            ? String((payload as { error: unknown }).error)
+            : "We couldn't create your report. Please try again.";
+
+        setSubmitError(message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const caseId =
+        payload && typeof payload === "object" && "case" in payload
+          ? (payload as { case: { caseId?: string } }).case?.caseId
+          : undefined;
+
+      if (!caseId) {
+        setSubmitError("The report was created but no reference came back. Please check your cases.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Stay disabled through navigation so the button cannot fire twice.
+      router.push(`/report/created/${caseId}`);
+    } catch {
+      setSubmitError(
+        "We couldn't reach CivicProof. Check your connection and try again — your answers are still here.",
+      );
+      setIsSubmitting(false);
+    }
+  }
+
   function goNext() {
     if (step === 0) {
       const result = incidentTypeStepSchema.safeParse({ incidentType });
@@ -206,13 +273,22 @@ export function ReportWizard() {
         <StepReview incidentType={incidentType} details={details} evidence={evidence} />
       ) : null}
 
+      {submitError ? (
+        <Alert variant="destructive">
+          <AlertTitle>We couldn&apos;t create your report</AlertTitle>
+          <AlertDescription>
+            {submitError} Nothing you entered has been lost.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-between">
         <Button
           type="button"
           variant="ghost"
           size="lg"
           onClick={goBack}
-          disabled={step === 0}
+          disabled={step === 0 || isSubmitting}
         >
           <ArrowLeft aria-hidden="true" />
           Back
@@ -220,11 +296,18 @@ export function ReportWizard() {
 
         {isLastStep ? (
           <div className="space-y-2 sm:text-right">
-            <Button type="button" size="lg" disabled>
-              Continue to AI Analysis
+            <Button type="button" size="lg" onClick={submitReport} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 aria-hidden="true" className="animate-spin" />
+                  Creating your case&hellip;
+                </>
+              ) : (
+                "Create my case"
+              )}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Not connected yet — case creation arrives in the next task.
+              This saves your report in CivicProof. It is not sent to any authority.
             </p>
           </div>
         ) : (

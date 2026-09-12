@@ -23,8 +23,7 @@ export const incidentTypeStepSchema = z.object({
   incidentType: incidentTypeSchema,
 });
 
-export const incidentDetailsStepSchema = z
-  .object({
+const incidentDetailsBaseSchema = z.object({
     description: z
       .string()
       .trim()
@@ -60,28 +59,41 @@ export const incidentDetailsStepSchema = z
       })
       .optional()
       .or(z.literal("")),
-  })
-  .refine(
-    (value) => {
-      if (!value.date) {
-        return true;
-      }
+});
 
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
+/** Shared date sanity rule: an incident cannot have happened in the future. */
+const notInTheFuture = {
+  check: (value: { date?: string }) => {
+    if (!value.date) {
+      return true;
+    }
 
-      return new Date(`${value.date}T00:00:00`) <= today;
-    },
-    {
-      message: "The date cannot be in the future.",
-      path: ["date"],
-    },
-  );
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-export const reportDraftSchema = incidentTypeStepSchema.and(incidentDetailsStepSchema);
+    return new Date(`${value.date}T00:00:00`) <= today;
+  },
+  options: { message: "The date cannot be in the future.", path: ["date"] },
+};
+
+export const incidentDetailsStepSchema = incidentDetailsBaseSchema.refine(
+  notInTheFuture.check,
+  notInTheFuture.options,
+);
+
+/**
+ * The request body POST /api/cases accepts.
+ *
+ * Only these fields are read. Anything else a client sends — reporterId, role,
+ * isSensitive, status, handoffStatus — is stripped by Zod and never reaches
+ * Prisma; those values are derived server-side (Docs/13-SECURITY.md §7).
+ */
+export const createCaseRequestSchema = incidentDetailsBaseSchema
+  .extend({ incidentType: incidentTypeSchema })
+  .refine(notInTheFuture.check, notInTheFuture.options);
 
 export type IncidentDetailsInput = z.infer<typeof incidentDetailsStepSchema>;
-export type ReportDraftInput = z.infer<typeof reportDraftSchema>;
+export type CreateCaseRequest = z.infer<typeof createCaseRequestSchema>;
 
 /**
  * Flatten Zod issues into a field -> first message map for form rendering.
