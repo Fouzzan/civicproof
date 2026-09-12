@@ -1,0 +1,219 @@
+// CivicProof — Prisma schema
+//
+// Implements the five-entity model defined in Docs/07-DATABASE.md:
+//
+//   User
+//     └── Case
+//           ├── Evidence
+//           ├── AIAnalysis
+//           └── TimelineEvent
+//
+// Deliberately NOT modelled (see Docs/07-DATABASE.md §10): IncidentType,
+// Severity, Authority, Assignment, Complaint, Resolution, Handoff, Notification,
+// AuditLog, LegalRule, Organization, PublicReport. Those are either attributes of
+// a Case in the current scope or outside the MVP entirely.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7 no longer accepts `url` here. The connection string lives in
+// prisma.config.ts (for CLI commands such as migrate/db push) and is passed to
+// PrismaClient via a driver adapter at runtime (see lib/db/prisma.ts).
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+//
+// Docs/12-IMPLEMENTATION-PLAN.md Task 4 specifies enums for role, severity,
+// case status, handoff status and event type. `incidentType` is deliberately
+// NOT an enum there — it stays a String and is validated at the API boundary.
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CITIZEN
+  AUTHORITY
+}
+
+/// Lifecycle of the case itself (Docs/08-API.md §3.7).
+enum CaseStatus {
+  CREATED
+  READY_FOR_HANDOFF
+  HANDED_OFF
+  IN_REVIEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+/// Truthfulness state machine for official reporting (Docs/05-MVP.md §8).
+/// CONFIRMED_SUBMISSION may ONLY be set on genuine external confirmation —
+/// never because a user clicked a button (Docs/13-SECURITY.md §14).
+enum HandoffStatus {
+  DRAFT
+  READY_FOR_OFFICIAL_HANDOFF
+  HANDED_OFF
+  CONFIRMED_SUBMISSION
+}
+
+/// AI-assisted suggestion, never an official or legal determination.
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+/// Only events that actually occurred are recorded (Docs/07-DATABASE.md §2.5).
+enum TimelineEventType {
+  CASE_CREATED
+  AI_ANALYSIS_COMPLETED
+  COMPLAINT_PREPARED
+  OFFICIAL_HANDOFF
+  AUTHORITY_REVIEW
+  STATUS_UPDATED
+  RESOLUTION_RECORDED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(CITIZEN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reportedCases    Case[]          @relation("CaseReporter")
+  assignedCases    Case[]          @relation("CaseAuthority")
+  uploadedEvidence Evidence[]      @relation("EvidenceUploader")
+  recordedEvents   TimelineEvent[] @relation("TimelineActor")
+}
+
+model Case {
+  id String @id @default(cuid())
+
+  /// Citizen-facing reference, e.g. "CP-2026-000184". Unique so it can retrieve
+  /// exactly one case — but it is an IDENTIFIER, NOT AN AUTHORIZATION TOKEN.
+  /// Every read must still check reporterId / authorityUserId server-side
+  /// (Docs/13-SECURITY.md §3, "IDOR protection").
+  caseId String @unique
+
+  /// The citizen who filed the report. Server-derived from the authenticated
+  /// session — never accepted from the client.
+  reporterId String
+  reporter   User   @relation("CaseReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+
+  /// Authority user authorised to handle this case, if one is assigned.
+  /// Optional: a freshly created case has no authority yet.
+  authorityUserId String?
+  authorityUser   User?   @relation("CaseAuthority", fields: [authorityUserId], references: [id], onDelete: SetNull)
+
+  // --- Citizen-provided facts (never overwritten by AI) ---
+  incidentType     String
+  description      String
+  incidentDateTime DateTime?
+  location         String?
+
+  /// Drives private handling for harassment/safety reports. Server-controlled:
+  /// sensitive incident types default to private even if a client sends false.
+  isSensitive Boolean @default(false)
+
+  // --- Workflow state (server-controlled) ---
+  status        CaseStatus    @default(CREATED)
+  handoffStatus HandoffStatus @default(DRAFT)
+
+  // --- AI-assisted suggestions, mirrored from AIAnalysis for display/sorting ---
+  severity           Severity?
+  severityReason     String?
+  reportingDirection String?
+  reportingChannel   String?
+
+  /// Reviewable draft. Generating a complaint is NOT submitting it.
+  complaintDraft String?
+
+  // --- Authority-recorded resolution (authority workflow only) ---
+  resolutionText String?
+  resolvedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence   Evidence[]
+  aiAnalysis AIAnalysis?
+  timeline   TimelineEvent[]
+
+  // Access-path indexes: the two authorization predicates in Docs/07-DATABASE.md §8.
+  @@index([reporterId])
+  @@index([authorityUserId])
+}
+
+model Evidence {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Restrict)
+
+  fileName String
+  fileType String
+
+  /// Pointer to object storage. The backend controls this value; a client must
+  /// never supply it, and possessing it must not grant file access
+  /// (Docs/13-SECURITY.md §10).
+  storageReference String
+
+  description String?
+
+  uploadedBy String
+  uploader   User   @relation("EvidenceUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId])
+}
+
+model AIAnalysis {
+  id String @id @default(cuid())
+
+  /// @unique enforces the MVP's one-analysis-per-case rule
+  /// (Docs/13-SECURITY.md §6, "Data integrity").
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Restrict)
+
+  summary        String
+  structuredData Json?
+
+  /// Optional so the AI can express uncertainty instead of fabricating a value.
+  severitySuggestion  Severity?
+  reportingSuggestion String?
+
+  /// Provenance for the "AI-assisted" label shown in the UI.
+  modelLabel String
+
+  createdAt DateTime @default(now())
+}
+
+model TimelineEvent {
+  id String @id @default(cuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Restrict)
+
+  eventType   TimelineEventType
+  title       String
+  description String?
+
+  /// Null for system-generated events. Derived from the authenticated user —
+  /// a client may never supply an actor (Docs/13-SECURITY.md §15).
+  actorUserId String?
+  actor       User?   @relation("TimelineActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  // Timeline reads are always "events for this case, in chronological order".
+  @@index([caseId, createdAt])
+}
