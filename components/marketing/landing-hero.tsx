@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, FlaskConical } from "lucide-react";
+import { ArrowDown, FilePlus2, FlaskConical } from "lucide-react";
 
 import { Container } from "@/components/layout/container";
 import { ServiceConstellation } from "@/components/marketing/service-constellation";
@@ -48,8 +48,15 @@ export function LandingHero() {
               <SituationInput />
             </div>
 
-            <div className="mt-6">
-              <Button asChild variant="ghost" size="lg" className="-ml-4">
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button asChild size="lg">
+                <Link href="/cases">
+                  <FilePlus2 aria-hidden="true" />
+                  Submit a Complaint
+                </Link>
+              </Button>
+
+              <Button asChild variant="ghost" size="lg" className="sm:-ml-2">
                 <Link href="#categories">
                   <ArrowDown aria-hidden="true" />
                   Explore services
